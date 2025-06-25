@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Esquema de configuración de RPA",
+  "type": "object",
+  "required": ["rpa", "correo", "programacion"],
+  "properties": {
+    "rpa": {
+      "type": "object",
+      "required": [
+        "nombre", "modo_navegador_visible", "tipo_autenticacion",
+        "url_acceso", "url_dashboard", "form_js", "http_basic",
+        "esperas", "pantalla"
+      ],
+      "properties": {
+        "nombre": { "type": "string" },
+        "modo_navegador_visible": { "type": "boolean" },
+        "tipo_autenticacion": { "type": "string", "enum": ["form_js", "http_basic"] },
+        "url_acceso": { "type": "string", "format": "uri" },
+        "url_dashboard": { "type": "string", "format": "uri" },
+        "form_js": {
+          "type": "object",
+          "required": ["username_selector", "username_value", "password_selector", "password_value", "login_action"],
+          "properties": {
+            "username_selector": { "type": "string" },
+            "username_value": { "type": "string" },
+            "password_selector": { "type": "string" },
+            "password_value": { "type": "string" },
+            "login_action": { "type": "string" }
+          }
+        },
+        "http_basic": {
+          "type": "object",
+          "required": ["username", "password"],
+          "properties": {
+            "username": { "type": "string" },
+            "password": { "type": "string" }
+          }
+        },
+        "esperas": {
+          "type": "object",
+          "required": ["wait_time_after_login", "wait_time_dashboard"],
+          "properties": {
+            "wait_time_after_login": { "type": "integer", "minimum": 0 },
+            "wait_time_dashboard": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "pantalla": {
+          "type": "object",
+          "required": ["viewport_width", "viewport_height", "captura_pagina_completa"],
+          "properties": {
+            "viewport_width": { "type": "integer", "minimum": 1 },
+            "viewport_height": { "type": "integer", "minimum": 1 },
+            "captura_pagina_completa": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "correo": {
+      "type": "object",
+      "required": [
+        "usar_remoto", "smtp_local", "smtp_remoto",
+        "remitente", "destinatarios", "cc", "asunto",
+        "incluir_fecha", "cuerpo_html"
+      ],
+      "properties": {
+        "usar_remoto": { "type": "boolean" },
+        "smtp_local": {
+          "type": "object",
+          "required": ["servidor", "puerto"],
+          "properties": {
+            "servidor": { "type": "string" },
+            "puerto": { "type": "integer" }
+          }
+        },
+        "smtp_remoto": {
+          "type": "object",
+          "required": ["servidor", "puerto", "usuario", "clave_aplicacion"],
+          "properties": {
+            "servidor": { "type": "string" },
+            "puerto": { "type": "integer" },
+            "usuario": { "type": "string" },
+            "clave_aplicacion": { "type": "string" }
+          }
+        },
+        "remitente": { "type": "string" },
+        "destinatarios": {
+          "type": "array",
+          "items": { "type": "string", "format": "email" }
+        },
+        "cc": {
+          "type": "array",
+          "items": { "type": "string", "format": "email" }
+        },
+        "asunto": { "type": "string" },
+        "incluir_fecha": { "type": "boolean" },
+        "cuerpo_html": { "type": "string" }
+      }
+    },
+    "programacion": {
+      "type": "object",
+      "required": ["frecuencia", "intervalo", "hora_inicio"],
+      "properties": {
+        "frecuencia": {
+          "type": "string",
+          "enum": ["hourly", "daily", "weekly"]
+        },
+        "intervalo": { "type": "integer", "minimum": 1 },
+        "hora_inicio": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" }
+      }
+    }
+  }
+}

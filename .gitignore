@@ -1,0 +1,93 @@
+# === Archivos sensibles ===
+.env
+*.env
+*.key
+*.pem
+*.crt
+*.p12
+*.jks
+*.keystore
+*.token
+*.secret
+secrets.*
+credentials.*
+config.local.*
+*.bak
+
+# === Bases de datos / backups ===
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+*.log
+
+# === Archivos de sistema operativo ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+desktop.ini
+
+# === Archivos de entorno Python ===
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.env/
+.venv/
+venv/
+ENV/
+env/
+pip-log.txt
+*.egg-info/
+.eggs/
+
+# === Entornos de desarrollo ===
+.idea/
+.vscode/
+*.code-workspace
+
+# === Node.js ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === Archivos de build ===
+dist/
+build/
+*.egg
+*.whl
+*.tar.gz
+
+# === Archivos de control de versiones o temporales ===
+*.swp
+*.tmp
+*.lock
+*.log
+*.orig
+
+# === Otros ===
+logs/
+*.log
+*.cache
+*.pid
+coverage/
+coverage.xml
+*.cover
+*.lcov
+
+# === Archivos personalizados del proyecto ===
+/config.json
+/secrets.json
+/private_keys/
+
+
+# === Carpeta de Playwright / Selenium ===
+ms-playwright/
+playwright-report/
+screens/
+screenshots/
+traces/
+video/
+Reportes/
