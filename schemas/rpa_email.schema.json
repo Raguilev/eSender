@@ -8,18 +8,34 @@
       "type": "object",
       "required": [
         "nombre", "modo_navegador_visible", "tipo_autenticacion",
-        "url_acceso", "url_dashboard", "form_js", "http_basic",
-        "esperas", "pantalla"
+        "url_ruta", "form_js", "http_basic", "pantalla"
       ],
       "properties": {
         "nombre": { "type": "string" },
         "modo_navegador_visible": { "type": "boolean" },
-        "tipo_autenticacion": { "type": "string", "enum": ["form_js", "http_basic"] },
-        "url_acceso": { "type": "string", "format": "uri" },
-        "url_dashboard": { "type": "string", "format": "uri" },
+        "tipo_autenticacion": {
+          "type": "string",
+          "enum": ["form_js", "http_basic"]
+        },
+        "url_ruta": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["url", "wait_time_ms"],
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "wait_time_ms": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
         "form_js": {
           "type": "object",
-          "required": ["username_selector", "username_value", "password_selector", "password_value", "login_action"],
+          "required": [
+            "username_selector", "username_value",
+            "password_selector", "password_value",
+            "login_action"
+          ],
           "properties": {
             "username_selector": { "type": "string" },
             "username_value": { "type": "string" },
@@ -34,14 +50,6 @@
           "properties": {
             "username": { "type": "string" },
             "password": { "type": "string" }
-          }
-        },
-        "esperas": {
-          "type": "object",
-          "required": ["wait_time_after_login", "wait_time_dashboard"],
-          "properties": {
-            "wait_time_after_login": { "type": "integer", "minimum": 0 },
-            "wait_time_dashboard": { "type": "integer", "minimum": 0 }
           }
         },
         "pantalla": {
@@ -105,7 +113,10 @@
           "enum": ["hourly", "daily", "weekly"]
         },
         "intervalo": { "type": "integer", "minimum": 1 },
-        "hora_inicio": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" }
+        "hora_inicio": {
+          "type": "string",
+          "pattern": "^\\d{2}:\\d{2}$"
+        }
       }
     }
   }
