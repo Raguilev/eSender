@@ -10,20 +10,24 @@ def conectar_botones_accion(parent):
 
 def ejecutar_rpa(parent):
     try:
-        save_config(parent)  # Guardar antes de ejecutar
+        json_path = save_config(parent)
+        if not json_path:
+            return  # Ya se mostró el error
         parent.process = QProcess(parent)
         parent.process.setProgram("python")
-        parent.process.setArguments(["run_rpa.py"])  # Usa el script real de ejecución, no main.py
+        parent.process.setArguments(["run_rpa.py"])
         parent.process.readyReadStandardOutput.connect(lambda: mostrar_stdout(parent))
         parent.process.readyReadStandardError.connect(lambda: mostrar_stderr(parent))
         parent.process.finished.connect(lambda code, status: finalizar_proceso(parent, code, status))
         parent.process.start()
     except Exception as e:
         QMessageBox.critical(parent, "Error al iniciar", f"No se pudo ejecutar el RPA:\n{e}")
+
 def hacer_deploy(parent):
     try:
-        save_config(parent)  # Asegura que se guarde la última configuración
         json_path = save_config(parent)
+        if not json_path:
+            return
         create_rpa_package(json_path)
         QMessageBox.information(parent, "Deploy", "Se ha generado el paquete del RPA exitosamente.")
     except Exception as e:
@@ -32,12 +36,12 @@ def hacer_deploy(parent):
 def mostrar_stdout(parent):
     data = parent.process.readAllStandardOutput()
     stdout = bytes(data).decode("utf-8", errors="replace")
-    print("🟢 STDOUT:\n", stdout)
+    print("STDOUT:\n", stdout)
 
 def mostrar_stderr(parent):
     data = parent.process.readAllStandardError()
     stderr = bytes(data).decode("utf-8", errors="replace")
-    print("🔴 STDERR:\n", stderr)
+    print("STDERR:\n", stderr)
     if stderr.strip():
         QMessageBox.critical(parent, "Error en ejecución", stderr)
 

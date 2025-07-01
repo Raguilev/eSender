@@ -15,7 +15,6 @@ def crear_seccion_email(parent):
     # === Selector de proveedor SMTP ===
     parent.smtp_selector = QComboBox()
     parent.smtp_selector.addItems(["Local", "Remoto"])
-    parent.smtp_selector.currentTextChanged.connect(parent.update_smtp_fields)
     form.addRow("Proveedor SMTP:", parent.smtp_selector)
 
     parent.smtp_stack = QStackedWidget()
@@ -109,6 +108,21 @@ def crear_seccion_email(parent):
     form.addRow(btn_test_smtp)
 
     grupo.setLayout(form)
+
+    # === Lógica: Sincronizar remitente si está vacío ===
+    def sincronizar_remitente():
+        if parent.smtp_selector.currentText() == "Remoto":
+            if not parent.remitente.text().strip():
+                parent.remitente.setText(parent.smtp_remoto_user.text())
+
+    def al_cambiar_smtp(opcion):
+        if opcion == "Remoto":
+            sincronizar_remitente()
+
+    parent.smtp_remoto_user.textChanged.connect(sincronizar_remitente)
+    parent.smtp_selector.currentTextChanged.connect(al_cambiar_smtp)
+    parent.smtp_selector.currentTextChanged.connect(parent.update_smtp_fields)
+
     return grupo
 
 
