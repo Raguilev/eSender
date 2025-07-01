@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (
     QGroupBox, QFormLayout, QLineEdit, QComboBox,
     QCheckBox, QVBoxLayout, QPushButton, QLabel,
-    QSizePolicy, QSpinBox, QHBoxLayout
+    QSizePolicy, QSpinBox, QHBoxLayout, QStackedWidget, QWidget
 )
 from widgets.url_route_widget import URLRouteWidget
 
@@ -10,32 +10,66 @@ def crear_seccion_rpa(parent):
     form = QFormLayout()
     form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
 
-    # Campo: Nombre del RPA
+    # === Nombre del RPA ===
     parent.nombre_rpa = QLineEdit()
     parent.nombre_rpa.setPlaceholderText("Ej: Monitoreo Principal")
     parent.nombre_rpa.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-    # Campo: Tipo de autenticación
+    # === Tipo de autenticación ===
     parent.tipo_auth = QComboBox()
     parent.tipo_auth.addItems(["form_js", "http_basic"])
     parent.tipo_auth.currentTextChanged.connect(lambda tipo: update_auth_fields(parent, tipo))
 
     parent.modo_visible = QCheckBox("Modo navegador visible")
 
-    form.addRow("Nombre RPA:", parent.nombre_rpa)
+    form.addRow("Nombre del RPA:", parent.nombre_rpa)
     form.addRow("Tipo de autenticación:", parent.tipo_auth)
     form.addRow(parent.modo_visible)
 
-    # Campos: Usuario y contraseña
-    parent.auth_user = QLineEdit()
-    parent.auth_pass = QLineEdit()
-    parent.auth_pass.setEchoMode(QLineEdit.Password)
-    parent.auth_user.setPlaceholderText("Usuario")
-    parent.auth_pass.setPlaceholderText("Contraseña")
-    form.addRow("Usuario:", parent.auth_user)
-    form.addRow("Contraseña:", parent.auth_pass)
+    # === Autenticación form_js ===
+    formjs_widget = QWidget()
+    formjs_layout = QFormLayout(formjs_widget)
 
-    # Campos: Pantalla
+    parent.selector_user = QLineEdit()
+    parent.selector_user.setPlaceholderText("#selector del input de usuario")
+
+    parent.valor_user = QLineEdit()
+    parent.valor_user.setPlaceholderText("Valor del usuario (Ej: admin)")
+
+    parent.selector_pass = QLineEdit()
+    parent.selector_pass.setPlaceholderText("#selector del input de contraseña")
+
+    parent.valor_pass = QLineEdit()
+    parent.valor_pass.setEchoMode(QLineEdit.Password)
+    parent.valor_pass.setPlaceholderText("Valor de la contraseña")
+
+    formjs_layout.addRow("Selector usuario:", parent.selector_user)
+    formjs_layout.addRow("Valor usuario:", parent.valor_user)
+    formjs_layout.addRow("Selector contraseña:", parent.selector_pass)
+    formjs_layout.addRow("Valor contraseña:", parent.valor_pass)
+
+    # === Autenticación http_basic ===
+    basic_widget = QWidget()
+    basic_layout = QFormLayout(basic_widget)
+
+    parent.basic_user = QLineEdit()
+    parent.basic_user.setPlaceholderText("Usuario (http_basic)")
+
+    parent.basic_pass = QLineEdit()
+    parent.basic_pass.setEchoMode(QLineEdit.Password)
+    parent.basic_pass.setPlaceholderText("Contraseña (http_basic)")
+
+    basic_layout.addRow("Usuario:", parent.basic_user)
+    basic_layout.addRow("Contraseña:", parent.basic_pass)
+
+    # === Stack dinámico de autenticación ===
+    parent.auth_stacked = QStackedWidget()
+    parent.auth_stacked.addWidget(formjs_widget)   # index 0
+    parent.auth_stacked.addWidget(basic_widget)    # index 1
+
+    form.addRow(parent.auth_stacked)
+
+    # === Resolución del navegador ===
     parent.viewport_width = QSpinBox()
     parent.viewport_width.setRange(800, 3840)
     parent.viewport_width.setValue(1920)
@@ -44,19 +78,19 @@ def crear_seccion_rpa(parent):
     parent.viewport_height.setRange(600, 2160)
     parent.viewport_height.setValue(1080)
 
-    parent.captura_completa = QCheckBox("Captura pantalla completa")
-    parent.captura_completa.setChecked(True)
-
     pantalla_layout = QHBoxLayout()
     pantalla_layout.addWidget(QLabel("Ancho:"))
     pantalla_layout.addWidget(parent.viewport_width)
     pantalla_layout.addWidget(QLabel("Alto:"))
     pantalla_layout.addWidget(parent.viewport_height)
 
+    parent.captura_completa = QCheckBox("Captura pantalla completa")
+    parent.captura_completa.setChecked(True)
+
     form.addRow("Resolución navegador:", pantalla_layout)
     form.addRow(parent.captura_completa)
 
-    # URLs dinámicas
+    # === Secuencia de URLs ===
     parent.urls_group = QGroupBox("Secuencia de URLs a visitar")
     parent.urls_layout = QVBoxLayout()
     parent.urls_list = QVBoxLayout()
@@ -73,15 +107,19 @@ def crear_seccion_rpa(parent):
 
     grupo.setLayout(form)
 
-    # Agregar primer URL obligatorio
+    # Inicializaciones finales
     add_url_widget(parent, is_initial=True)
-
-    # Inicializar placeholders de usuario/clave según tipo seleccionado
     update_auth_fields(parent, parent.tipo_auth.currentText())
 
     return grupo
 
+def update_auth_fields(parent, auth_type):
+    """Actualiza la vista del stack según el tipo de autenticación."""
+    index = 0 if auth_type == "form_js" else 1
+    parent.auth_stacked.setCurrentIndex(index)
+
 def add_url_widget(parent, is_initial=False):
+    """Añade un widget de URL con botón eliminar (excepto el primero)."""
     url_widget = URLRouteWidget(
         url_text="",
         wait_time=0 if is_initial else 10000
@@ -95,14 +133,7 @@ def add_url_widget(parent, is_initial=False):
     parent.url_routes.append(url_widget)
 
 def remove_url_widget(parent, widget):
+    """Elimina un widget de URL de la interfaz."""
     parent.urls_list.removeWidget(widget)
     widget.setParent(None)
     parent.url_routes.remove(widget)
-
-def update_auth_fields(parent, auth_type):
-    if auth_type == "form_js":
-        parent.auth_user.setPlaceholderText("Selector + valor usuario (form_js)")
-        parent.auth_pass.setPlaceholderText("Selector + valor contraseña (form_js)")
-    else:
-        parent.auth_user.setPlaceholderText("Usuario (http_basic)")
-        parent.auth_pass.setPlaceholderText("Contraseña (http_basic)")

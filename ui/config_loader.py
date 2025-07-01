@@ -52,19 +52,17 @@ def aplicar_datos_config(parent, data):
     parent.modo_visible.setChecked(rpa.get("modo_navegador_visible", False))
 
     if rpa.get("tipo_autenticacion") == "form_js":
-        parent.auth_user.setText(rpa.get("form_js", {}).get("username_value", ""))
-        parent.auth_pass.setText(rpa.get("form_js", {}).get("password_value", ""))
+        parent.auth_user.setText(f"{rpa.get('form_js', {}).get('username_selector', '')}:{rpa.get('form_js', {}).get('username_value', '')}")
+        parent.auth_pass.setText(f"{rpa.get('form_js', {}).get('password_selector', '')}:{rpa.get('form_js', {}).get('password_value', '')}")
     else:
         parent.auth_user.setText(rpa.get("http_basic", {}).get("username", ""))
         parent.auth_pass.setText(rpa.get("http_basic", {}).get("password", ""))
 
-    # Cargar valores de pantalla (viewport y captura)
     pantalla = rpa.get("pantalla", {})
     parent.viewport_width.setValue(pantalla.get("viewport_width", 1920))
     parent.viewport_height.setValue(pantalla.get("viewport_height", 1080))
     parent.captura_completa.setChecked(pantalla.get("captura_pagina_completa", True))
 
-    # Limpiar widgets URL previos
     for widget in parent.url_routes[:]:
         parent.urls_list.removeWidget(widget)
         widget.setParent(None)
@@ -80,7 +78,6 @@ def aplicar_datos_config(parent, data):
         from ui.rpa_section import add_url_widget
         add_url_widget(parent, is_initial=True)
 
-    # === Correo
     correo = data.get("correo", {})
     parent.smtp_selector.setCurrentText("Remoto" if correo.get("usar_remoto") else "Local")
     parent.remitente.setText(correo.get("remitente", ""))
@@ -90,11 +87,12 @@ def aplicar_datos_config(parent, data):
     parent.incluir_fecha.setChecked(correo.get("incluir_fecha", False))
     parent.cuerpo_html.setPlainText(correo.get("cuerpo_html", ""))
 
-    parent.smtp_local.setText(f'{correo.get("smtp_local", {}).get("servidor", "")}:{correo.get("smtp_local", {}).get("puerto", "")}')
-    parent.smtp_remoto.setText(f'{correo.get("smtp_remoto", {}).get("servidor", "")}:{correo.get("smtp_remoto", {}).get("puerto", "")}')
+    parent.smtp_local_host.setText(correo.get("smtp_local", {}).get("servidor", ""))
+    parent.smtp_local_port.setText(str(correo.get("smtp_local", {}).get("puerto", "")))
+    parent.smtp_remoto_host.setText(correo.get("smtp_remoto", {}).get("servidor", ""))
+    parent.smtp_remoto_port.setText(str(correo.get("smtp_remoto", {}).get("puerto", "")))
     parent.cred_remoto.setText(correo.get("smtp_remoto", {}).get("clave_aplicacion", ""))
 
-    # === Programación
     prog = data.get("programacion", {})
     parent.frecuencia.setCurrentText(prog.get("frecuencia", "hourly"))
     parent.intervalo.setText(str(prog.get("intervalo", 6)))
@@ -102,8 +100,6 @@ def aplicar_datos_config(parent, data):
 
 def save_config(parent):
     try:
-        smtp_local_host, smtp_local_port = parent.smtp_local.text().split(":")
-        smtp_remoto_host, smtp_remoto_port = parent.smtp_remoto.text().split(":")
         urls_config = []
         for idx, w in enumerate(parent.url_routes):
             url = w.url_input.text().strip()
@@ -113,16 +109,19 @@ def save_config(parent):
             if url:
                 urls_config.append({"url": url, "wait_time_ms": wait})
 
+        form_user_selector, form_user_value = parent.auth_user.text().split(":", 1) if ":" in parent.auth_user.text() else ("#username", parent.auth_user.text())
+        form_pass_selector, form_pass_value = parent.auth_pass.text().split(":", 1) if ":" in parent.auth_pass.text() else ("#password", parent.auth_pass.text())
+
         parent.config["rpa"] = {
             "nombre": parent.nombre_rpa.text(),
             "modo_navegador_visible": parent.modo_visible.isChecked(),
             "tipo_autenticacion": parent.tipo_auth.currentText(),
             "url_ruta": urls_config,
             "form_js": {
-                "username_selector": "#username",
-                "username_value": parent.auth_user.text() if parent.tipo_auth.currentText() == "form_js" else "",
-                "password_selector": "#password",
-                "password_value": parent.auth_pass.text() if parent.tipo_auth.currentText() == "form_js" else "",
+                "username_selector": form_user_selector,
+                "username_value": form_user_value,
+                "password_selector": form_pass_selector,
+                "password_value": form_pass_value,
                 "login_action": "Enter"
             },
             "http_basic": {
@@ -139,12 +138,12 @@ def save_config(parent):
         parent.config["correo"] = {
             "usar_remoto": parent.smtp_selector.currentText() == "Remoto",
             "smtp_local": {
-                "servidor": smtp_local_host,
-                "puerto": int(smtp_local_port)
+                "servidor": parent.smtp_local_host.text(),
+                "puerto": int(parent.smtp_local_port.text())
             },
             "smtp_remoto": {
-                "servidor": smtp_remoto_host,
-                "puerto": int(smtp_remoto_port),
+                "servidor": parent.smtp_remoto_host.text(),
+                "puerto": int(parent.smtp_remoto_port.text()),
                 "usuario": parent.remitente.text(),
                 "clave_aplicacion": parent.cred_remoto.text()
             },
@@ -172,7 +171,6 @@ def save_config(parent):
         with open(ruta_json, "w", encoding="utf-8") as f:
             json.dump(parent.config, f, indent=4, ensure_ascii=False)
 
-        # Guardar copia de respaldo
         os.makedirs(RUTA_CARPETA_RESPALDOS, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         respaldo = os.path.join(RUTA_CARPETA_RESPALDOS, f"{nombre_rpa}_{timestamp}.json")

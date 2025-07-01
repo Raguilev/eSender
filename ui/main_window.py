@@ -9,26 +9,30 @@ from ui.schedule_section import crear_seccion_schedule
 from ui.buttons_section import conectar_botones_accion
 from ui.config_loader import agregar_botones_carga
 
+
 class RPAConfigUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Editor de configuración RPA")
         self.resize(900, 750)
 
-        # Estructura interna del config (cargado y guardado como JSON)
+        # Config base en memoria
         self.config = {
             "rpa": {},
             "correo": {},
             "programacion": {}
         }
 
-        self.url_routes = []  # Lista de widgets URLRouteWidget agregados dinámicamente
+        self.url_routes = []  # Lista de widgets dinámicos para URLs
 
-        # Estructura principal
+        # === Layout principal ===
         central = QWidget()
         self.central_layout = QVBoxLayout(central)
+
+        # Botones de carga/guardar configuración
         agregar_botones_carga(self)
 
+        # Scroll de contenido
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll_content = QWidget()
@@ -44,7 +48,7 @@ class RPAConfigUI(QMainWindow):
         self.schedule_group = crear_seccion_schedule(self)
         self.scroll_layout.addWidget(self.schedule_group)
 
-        # Botones finales
+        # === Botones finales ===
         botones_layout = QHBoxLayout()
         self.save_button = QPushButton("Guardar JSON")
         self.test_button = QPushButton("Test")
@@ -60,25 +64,30 @@ class RPAConfigUI(QMainWindow):
         self.central_layout.addWidget(scroll)
         self.setCentralWidget(central)
 
-        # Conexión de acciones principales
+        # Conectar lógica a botones y comboboxes
         conectar_botones_accion(self)
 
-    def update_auth_fields(self, auth_type):
-        """Actualiza los placeholders de usuario y contraseña según tipo de autenticación."""
-        if auth_type == "form_js":
-            self.auth_user.setPlaceholderText("Selector + valor usuario (form_js)")
-            self.auth_pass.setPlaceholderText("Selector + valor contraseña (form_js)")
-        else:
-            self.auth_user.setPlaceholderText("Usuario (http_basic)")
-            self.auth_pass.setPlaceholderText("Contraseña (http_basic)")
+    def update_auth_fields(self, auth_type: str):
+        """Alterna entre campos de login form_js y http_basic."""
+        is_form = auth_type == "form_js"
+        self.selector_user.setVisible(is_form)
+        self.valor_user.setVisible(is_form)
+        self.selector_pass.setVisible(is_form)
+        self.valor_pass.setVisible(is_form)
 
-    def update_smtp_fields(self, selected):
-        """Actualiza campos de SMTP en base a si es remoto o local (usado por email_section)."""
+        self.basic_user.setVisible(not is_form)
+        self.basic_pass.setVisible(not is_form)
+
+    def update_smtp_fields(self, selected: str):
+        """Muestra el widget de SMTP correspondiente usando QStackedWidget."""
         if selected == "Remoto":
-            self.smtp_local.setDisabled(True)
-            self.smtp_remoto.setDisabled(False)
-            self.cred_remoto.setDisabled(False)
+            self.smtp_stack.setCurrentWidget(self.smtp_remoto_widget)
         else:
-            self.smtp_local.setDisabled(False)
-            self.smtp_remoto.setDisabled(True)
-            self.cred_remoto.setDisabled(True)
+            self.smtp_stack.setCurrentWidget(self.smtp_local_widget)
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = RPAConfigUI()
+    window.show()
+    sys.exit(app.exec_())
