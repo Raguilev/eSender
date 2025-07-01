@@ -24,7 +24,7 @@
             "type": "object",
             "required": ["url", "wait_time_ms"],
             "properties": {
-              "url": { "type": "string", "format": "uri" },
+              "url": { "type": "string", "pattern": "^https?://.*|/.*" },
               "wait_time_ms": { "type": "integer", "minimum": 0 }
             }
           }
