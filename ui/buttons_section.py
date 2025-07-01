@@ -1,6 +1,11 @@
+import os
+import json
+import tempfile
 from PyQt5.QtCore import QProcess
 from PyQt5.QtWidgets import QMessageBox
 from deploy_handler import create_rpa_package
+from jsonschema import validate, ValidationError
+from constants import SCHEMA_FILE
 from ui.config_loader import save_config
 
 def conectar_botones_accion(parent):
@@ -10,18 +15,31 @@ def conectar_botones_accion(parent):
 
 def ejecutar_rpa(parent):
     try:
-        json_path = save_config(parent)
-        if not json_path:
-            return  # Ya se mostró el error
+        # === Generar configuración temporal ===
+        data = parent.obtener_config_desde_ui()
+
+        with open(SCHEMA_FILE, encoding="utf-8") as schema_file:
+            schema = json.load(schema_file)
+            validate(instance=data, schema=schema)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w", encoding="utf-8") as tmp:
+            json.dump(data, tmp, indent=4, ensure_ascii=False)
+            tmp_path = tmp.name
+
+        # === Ejecutar el proceso ===
         parent.process = QProcess(parent)
         parent.process.setProgram("python")
-        parent.process.setArguments(["run_rpa.py"])
+        parent.process.setArguments(["run_rpa.py", tmp_path])
         parent.process.readyReadStandardOutput.connect(lambda: mostrar_stdout(parent))
         parent.process.readyReadStandardError.connect(lambda: mostrar_stderr(parent))
         parent.process.finished.connect(lambda code, status: finalizar_proceso(parent, code, status))
         parent.process.start()
+
+    except ValidationError as ve:
+        path = " → ".join(str(p) for p in ve.path)
+        QMessageBox.critical(parent, "Error de validación", f"Campo: {path}\nDetalle: {ve.message}")
     except Exception as e:
-        QMessageBox.critical(parent, "Error al iniciar", f"No se pudo ejecutar el RPA:\n{e}")
+        QMessageBox.critical(parent, "Error", f"No se pudo ejecutar el RPA:\n{e}")
 
 def hacer_deploy(parent):
     try:

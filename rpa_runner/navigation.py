@@ -15,40 +15,38 @@ def ejecutar_navegacion(rpa_config, screenshot_dir="Reportes"):
     screenshot_filename = f"captura_{safe_timestamp}.png"
     screenshot_path = os.path.join(screenshot_dir, screenshot_filename)
 
-    browser = None
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=not rpa_config.get("modo_navegador_visible", False),
-                args=["--ignore-certificate-errors"]
-            )
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=not rpa_config.get("modo_navegador_visible", False),
+            args=["--ignore-certificate-errors"]
+        )
 
-            context_args = {
-                "viewport": {
-                    "width": rpa_config.get("pantalla", {}).get("viewport_width", 1920),
-                    "height": rpa_config.get("pantalla", {}).get("viewport_height", 1080)
-                },
-                "ignore_https_errors": True
+        context_args = {
+            "viewport": {
+                "width": rpa_config.get("pantalla", {}).get("viewport_width", 1920),
+                "height": rpa_config.get("pantalla", {}).get("viewport_height", 1080)
+            },
+            "ignore_https_errors": True
+        }
+
+        # Autenticación http_basic si aplica
+        if rpa_config.get("tipo_autenticacion") == "http_basic":
+            creds = rpa_config.get("http_basic", {})
+            if not creds.get("username") or not creds.get("password"):
+                raise ValueError("Credenciales http_basic vacías.")
+            context_args["http_credentials"] = {
+                "username": creds["username"],
+                "password": creds["password"]
             }
 
-            # Autenticación http_basic si aplica
-            if rpa_config.get("tipo_autenticacion") == "http_basic":
-                creds = rpa_config.get("http_basic", {})
-                if not creds.get("username") or not creds.get("password"):
-                    raise ValueError("Credenciales http_basic vacías.")
-                context_args["http_credentials"] = {
-                    "username": creds["username"],
-                    "password": creds["password"]
-                }
-
-            context = browser.new_context(**context_args)
+        with browser.new_context(**context_args) as context:
             page = context.new_page()
 
             for idx, ruta in enumerate(url_ruta):
                 url_actual = ruta.get("url")
                 wait_time = int(ruta.get("wait_time_ms", 0))
                 if not url_actual:
-                    raise ValueError(f"URL vacía en la posición {idx+1}")
+                    raise ValueError(f"URL vacía en la posición {idx + 1}")
 
                 page.goto(url_actual, timeout=60000)
 
@@ -69,8 +67,5 @@ def ejecutar_navegacion(rpa_config, screenshot_dir="Reportes"):
                 path=screenshot_path,
                 full_page=rpa_config.get("pantalla", {}).get("captura_pagina_completa", True)
             )
-            return screenshot_path, timestamp
 
-    finally:
-        if browser:
-            browser.close()
+    return screenshot_path, timestamp

@@ -85,7 +85,7 @@ class RPAConfigUI(QMainWindow):
     def obtener_config_desde_ui(self):
         required_attrs = [
             "nombre_rpa", "smtp_local_host", "smtp_local_port", "smtp_remoto_host", "smtp_remoto_port",
-            "cred_remoto", "remitente", "destinatarios", "incluir_fecha", "cuerpo_html",
+            "cred_remoto", "remitente", "destinatarios", "cuerpo_html",
             "valor_user", "valor_pass", "basic_user", "basic_pass"
         ]
         for attr in required_attrs:
@@ -104,9 +104,14 @@ class RPAConfigUI(QMainWindow):
 
         # === Autenticación ===
         if self.tipo_auth.currentText() == "form_js":
-            form_user_selector = self.selector_user.text().strip()
+            if self.checkbox_selectores.isChecked():
+                form_user_selector = self.selector_user.text().strip() or "#username"
+                form_pass_selector = self.selector_pass.text().strip() or "#password"
+            else:
+                form_user_selector = "#username"
+                form_pass_selector = "#password"
+
             form_user_value = self.valor_user.text().strip()
-            form_pass_selector = self.selector_pass.text().strip()
             form_pass_value = self.valor_pass.text().strip()
             http_user = ""
             http_pass = ""
@@ -177,3 +182,65 @@ class RPAConfigUI(QMainWindow):
             "correo": correo,
             "programacion": programacion
         }
+
+    def set_config(self, data):
+        from widgets.url_route_widget import URLRouteWidget
+
+        # === RPA ===
+        rpa = data.get("rpa", {})
+        self.nombre_rpa.setText(rpa.get("nombre", ""))
+        self.modo_visible.setChecked(rpa.get("modo_navegador_visible", False))
+        self.tipo_auth.setCurrentText(rpa.get("tipo_autenticacion", "form_js"))
+        self.update_auth_fields(self.tipo_auth.currentText())
+
+        form_js = rpa.get("form_js", {})
+        self.selector_user.setText(form_js.get("username_selector", ""))
+        self.valor_user.setText(form_js.get("username_value", ""))
+        self.selector_pass.setText(form_js.get("password_selector", ""))
+        self.valor_pass.setText(form_js.get("password_value", ""))
+
+        http_basic = rpa.get("http_basic", {})
+        self.basic_user.setText(http_basic.get("username", ""))
+        self.basic_pass.setText(http_basic.get("password", ""))
+
+        pantalla = rpa.get("pantalla", {})
+        self.viewport_width.setValue(pantalla.get("viewport_width", 1920))
+        self.viewport_height.setValue(pantalla.get("viewport_height", 1080))
+        self.captura_completa.setChecked(pantalla.get("captura_pagina_completa", True))
+
+        for w in self.url_routes:
+            w.setParent(None)
+        self.url_routes.clear()
+
+        for i, ruta in enumerate(rpa.get("url_ruta", [])):
+            w = URLRouteWidget(url_text=ruta.get("url", ""), wait_time=ruta.get("wait_time_ms", 10000))
+            self.url_routes.append(w)
+            self.urls_list.addWidget(w)
+            if i == 0:
+                w.delete_btn.setDisabled(True)
+
+        # === Correo ===
+        correo = data.get("correo", {})
+        usar_remoto = correo.get("usar_remoto", False)
+        self.smtp_selector.setCurrentText("Remoto" if usar_remoto else "Local")
+        self.update_smtp_fields("Remoto" if usar_remoto else "Local")
+
+        self.smtp_local_host.setText(correo.get("smtp_local", {}).get("servidor", ""))
+        self.smtp_local_port.setText(str(correo.get("smtp_local", {}).get("puerto", 25)))
+
+        self.smtp_remoto_host.setText(correo.get("smtp_remoto", {}).get("servidor", ""))
+        self.smtp_remoto_port.setText(str(correo.get("smtp_remoto", {}).get("puerto", 587)))
+        self.cred_remoto.setText(correo.get("smtp_remoto", {}).get("clave_aplicacion", ""))
+        self.smtp_remoto_user.setText(correo.get("smtp_remoto", {}).get("usuario", ""))
+        self.remitente.setText(correo.get("remitente", ""))
+        self.destinatarios.setText(", ".join(correo.get("destinatarios", [])))
+        self.cc.setText(", ".join(correo.get("cc", [])))
+        self.asunto.setText(correo.get("asunto", ""))
+        self.incluir_fecha.setChecked(correo.get("incluir_fecha", True))
+        self.cuerpo_html.setPlainText(correo.get("cuerpo_html", ""))
+
+        # === Programación ===
+        prog = data.get("programacion", {})
+        self.frecuencia.setCurrentText(prog.get("frecuencia", "daily"))
+        self.intervalo.setText(str(prog.get("intervalo", 1)))
+        self.hora_inicio.setText(prog.get("hora_inicio", "00:00"))

@@ -1,39 +1,48 @@
 import os
-import json
 import sys
+import json
 from rpa_runner.navigation import ejecutar_navegacion
 from rpa_runner.mailer import enviar_reporte_por_correo
 
-# === Parámetro: Ruta del archivo JSON ===
+# === Validar argumento de entrada ===
 if len(sys.argv) < 2:
     print("Uso: python run_rpa.py <ruta_config.json>")
     sys.exit(1)
 
-CONFIG_PATH = sys.argv[1]
+config_path = sys.argv[1]
 
-# === Cargar configuración ===
+if not os.path.exists(config_path):
+    print(f"Archivo no encontrado: {config_path}")
+    sys.exit(1)
+
+# === Cargar configuración JSON ===
 try:
-    with open(CONFIG_PATH, encoding="utf-8") as f:
+    with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
 except Exception as e:
-    print(f"Error al leer la configuración: {e}")
+    print(f"Error al leer el archivo de configuración: {e}")
     sys.exit(1)
 
 rpa = config.get("rpa", {})
 correo = config.get("correo", {})
 
-# === Validaciones básicas ===
+# === Validaciones esenciales ===
+# Validar URL inicial
 if not rpa.get("url_ruta") or not rpa["url_ruta"][0].get("url"):
-    print("URL de acceso no especificada.")
+    print("Error: Debes especificar al menos una URL de acceso inicial.")
     sys.exit(1)
 
-if correo.get("usar_remoto", False):
-    smtp = correo.get("smtp_remoto", {})
-    if not smtp.get("usuario") or not smtp.get("clave_aplicacion"):
-        print("Credenciales de servidor remoto incompletas.")
+# Validar credenciales de correo si se usa servidor remoto
+usar_remoto = correo.get("usar_remoto", False)
+if usar_remoto:
+    smtp_remoto = correo.get("smtp_remoto", {})
+    if not smtp_remoto.get("usuario") or not smtp_remoto.get("clave_aplicacion"):
+        print("Error: Faltan credenciales para el servidor SMTP remoto.")
         sys.exit(1)
 else:
-    smtp = correo.get("smtp_local", {})
+    smtp_local = correo.get("smtp_local", {})
+    if not smtp_local.get("servidor"):
+        print("Advertencia: No se especificó un servidor SMTP local.")
 
 # === Ejecutar navegación y captura ===
 try:
@@ -43,9 +52,10 @@ except Exception as e:
     print(f"Error durante la navegación: {e}")
     sys.exit(1)
 
-# === Enviar correo ===
+# === Enviar correo con captura adjunta ===
 try:
     enviar_reporte_por_correo(correo, rpa, screenshot_path, timestamp)
     print("Correo enviado correctamente.")
 except Exception as e:
     print(f"Error al enviar el correo: {e}")
+    sys.exit(1)
