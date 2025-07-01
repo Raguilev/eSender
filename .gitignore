@@ -92,3 +92,8 @@ screenshots/
 traces/
 video/
 Reportes/
+
+# === Archivos JSON generados y configuraciones ===
+/configuraciones_guardadas/
+/*.json
+!schemas/rpa_email.schema.json

@@ -152,10 +152,3 @@ class RPAConfigUI(QMainWindow):
         }
 
         return config
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = RPAConfigUI()
-    window.show()
-    sys.exit(app.exec_())
