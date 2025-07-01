@@ -8,9 +8,12 @@ def create_rpa_package(json_path: str):
         config = json.load(f)
 
     rpa_name = config["rpa"]["nombre"].replace(" ", "_")
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    package_name = f"{rpa_name}_{timestamp}"
+    package_name = rpa_name
     package_dir = os.path.join("RPAs_Generados", package_name)
+
+    # Si ya existe, lo eliminamos para evitar conflictos
+    if os.path.exists(package_dir):
+        shutil.rmtree(package_dir)
     os.makedirs(package_dir, exist_ok=True)
 
     # Guardar JSON de configuración

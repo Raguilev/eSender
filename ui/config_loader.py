@@ -1,11 +1,12 @@
 import os
 import json
 import glob
-import shutil
 from datetime import datetime
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from jsonschema import validate, ValidationError
-from constants import PLANTILLA_HTML_POR_DEFECTO, RUTA_CONFIG_PRINCIPAL, RUTA_CARPETA_RESPALDOS, SCHEMA_FILE
+from constants import PLANTILLA_HTML_POR_DEFECTO, SCHEMA_FILE
+from constants import CARPETA_CONFIGS
+
 
 
 def agregar_botones_carga(parent):
@@ -21,21 +22,20 @@ def agregar_botones_carga(parent):
 
 
 def cargar_ultima_config(parent):
-    os.makedirs(RUTA_CARPETA_RESPALDOS, exist_ok=True)
-    archivos = glob.glob(os.path.join(RUTA_CARPETA_RESPALDOS, "*.json"))
+    os.makedirs(CARPETA_CONFIGS, exist_ok=True)
+    archivos = glob.glob(os.path.join(CARPETA_CONFIGS, "*.json"))
     if not archivos:
-        if os.path.exists(RUTA_CONFIG_PRINCIPAL):
-            cargar_desde_archivo(parent, RUTA_CONFIG_PRINCIPAL)
-        else:
-            QMessageBox.warning(parent, "No encontrado", "No hay configuraciones guardadas.")
+        QMessageBox.warning(parent, "No encontrado", "No hay configuraciones guardadas.")
         return
     ultimo = max(archivos, key=os.path.getmtime)
     cargar_desde_archivo(parent, ultimo)
 
 
 def seleccionar_archivo_config(parent):
-    os.makedirs(RUTA_CARPETA_RESPALDOS, exist_ok=True)
-    archivo, _ = QFileDialog.getOpenFileName(parent, "Seleccionar configuración", RUTA_CARPETA_RESPALDOS, "Archivos JSON (*.json)")
+    os.makedirs(CARPETA_CONFIGS, exist_ok=True)
+    archivo, _ = QFileDialog.getOpenFileName(
+        parent, "Seleccionar configuración", CARPETA_CONFIGS, "Archivos JSON (*.json)"
+    )
     if archivo:
         cargar_desde_archivo(parent, archivo)
 
@@ -67,29 +67,24 @@ def save_config(parent):
             schema = json.load(schema_file)
             validate(instance=data, schema=schema)
 
-        # === Rutas ===
-        carpeta_config = os.path.join(os.path.dirname(__file__), "..", "configs")
-        os.makedirs(carpeta_config, exist_ok=True)
-
+        # === Guardar archivo ===
+        os.makedirs(CARPETA_CONFIGS, exist_ok=True)
         nombre_rpa = data["rpa"].get("nombre", "rpa_email").replace(" ", "_")
-        ruta_json = os.path.join(carpeta_config, f"{nombre_rpa}.json")
+        ruta_json = os.path.join(CARPETA_CONFIGS, f"{nombre_rpa}.json")
 
-        # === Guardar archivo principal ===
         with open(ruta_json, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-
-        # === Crear respaldo ===
-        os.makedirs(RUTA_CARPETA_RESPALDOS, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        respaldo = os.path.join(RUTA_CARPETA_RESPALDOS, f"{nombre_rpa}_{timestamp}.json")
-        shutil.copyfile(ruta_json, respaldo)
 
         # === Validación adicional correo ===
         if data["correo"].get("usar_remoto"):
             usuario_remoto = data["correo"].get("smtp_remoto", {}).get("usuario", "")
             remitente = data["correo"].get("remitente", "")
             if remitente and remitente != usuario_remoto:
-                QMessageBox.warning(parent, "Advertencia", "El remitente no coincide con el usuario SMTP. Esto puede causar problemas con algunos proveedores.")
+                QMessageBox.warning(
+                    parent,
+                    "Advertencia",
+                    "El remitente no coincide con el usuario SMTP. Esto puede causar problemas con algunos proveedores."
+                )
 
         QMessageBox.information(parent, "Éxito", f"Configuración guardada en:\n{ruta_json}")
         return ruta_json

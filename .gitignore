@@ -97,3 +97,4 @@ Reportes/
 /configuraciones_guardadas/
 /*.json
 !schemas/rpa_email.schema.json
+/RPAs_Generados

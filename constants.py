@@ -17,5 +17,5 @@ PLANTILLA_HTML_POR_DEFECTO = """
 """
 
 RUTA_CONFIG_PRINCIPAL = "rpa_email.json"
-RUTA_CARPETA_RESPALDOS = "configuraciones_guardadas"
+CARPETA_CONFIGS = "configuraciones_guardadas"
 SCHEMA_FILE = "schemas/rpa_email.schema.json"
