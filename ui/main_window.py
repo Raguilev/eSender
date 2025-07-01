@@ -82,7 +82,17 @@ class RPAConfigUI(QMainWindow):
         else:
             self.smtp_stack.setCurrentWidget(self.smtp_local_widget)
 
-    def obtener_config_desde_ui(self) -> dict:
+    def obtener_config_desde_ui(self):
+        required_attrs = [
+            "nombre_rpa", "smtp_local_host", "smtp_local_port", "smtp_remoto_host", "smtp_remoto_port",
+            "cred_remoto", "remitente", "destinatarios", "incluir_fecha", "cuerpo_html",
+            "valor_user", "valor_pass", "basic_user", "basic_pass"
+        ]
+        for attr in required_attrs:
+            if not hasattr(self, attr):
+                raise AttributeError(f"Falta el campo requerido: {attr}")
+
+        # === URLs ===
         urls_config = []
         for idx, w in enumerate(self.url_routes):
             url = w.url_input.text().strip()
@@ -92,19 +102,62 @@ class RPAConfigUI(QMainWindow):
             if url:
                 urls_config.append({"url": url, "wait_time_ms": wait})
 
-        if ":" in self.auth_user.text():
-            form_user_selector, form_user_value = self.auth_user.text().split(":", 1)
+        # === Autenticación ===
+        if self.tipo_auth.currentText() == "form_js":
+            form_user_selector = self.selector_user.text().strip()
+            form_user_value = self.valor_user.text().strip()
+            form_pass_selector = self.selector_pass.text().strip()
+            form_pass_value = self.valor_pass.text().strip()
+            http_user = ""
+            http_pass = ""
         else:
-            form_user_selector, form_user_value = "#username", self.auth_user.text()
+            form_user_selector = "#username"
+            form_user_value = ""
+            form_pass_selector = "#password"
+            form_pass_value = ""
+            http_user = self.basic_user.text().strip()
+            http_pass = self.basic_pass.text().strip()
 
-        if ":" in self.auth_pass.text():
-            form_pass_selector, form_pass_value = self.auth_pass.text().split(":", 1)
-        else:
-            form_pass_selector, form_pass_value = "#password", self.auth_pass.text()
+        # === Pantalla ===
+        pantalla = {
+            "viewport_width": self.viewport_width.value(),
+            "viewport_height": self.viewport_height.value(),
+            "captura_pagina_completa": self.captura_completa.isChecked()
+        }
 
-        config = {
+        # === Correo ===
+        usar_remoto = self.smtp_selector.currentText() == "Remoto"
+        correo = {
+            "usar_remoto": usar_remoto,
+            "smtp_local": {
+                "servidor": self.smtp_local_host.text().strip(),
+                "puerto": int(self.smtp_local_port.text() or 25)
+            },
+            "smtp_remoto": {
+                "servidor": self.smtp_remoto_host.text().strip(),
+                "puerto": int(self.smtp_remoto_port.text() or 587),
+                "usuario": self.remitente.text().strip(),
+                "clave_aplicacion": self.cred_remoto.text().strip()
+            },
+            "remitente": self.remitente.text().strip(),
+            "destinatarios": [x.strip() for x in self.destinatarios.text().split(",") if x.strip()],
+            "cc": [x.strip() for x in self.cc.text().split(",") if x.strip()],
+            "asunto": self.asunto.text().strip(),
+            "incluir_fecha": self.incluir_fecha.isChecked(),
+            "cuerpo_html": self.cuerpo_html.toPlainText() or PLANTILLA_HTML_POR_DEFECTO
+        }
+
+        # === Programación ===
+        programacion = {
+            "frecuencia": self.frecuencia.currentText(),
+            "intervalo": int(self.intervalo.text()),
+            "hora_inicio": self.hora_inicio.text().strip()
+        }
+
+        # === Config final ===
+        return {
             "rpa": {
-                "nombre": self.nombre_rpa.text(),
+                "nombre": self.nombre_rpa.text().strip(),
                 "modo_navegador_visible": self.modo_visible.isChecked(),
                 "tipo_autenticacion": self.tipo_auth.currentText(),
                 "url_ruta": urls_config,
@@ -116,39 +169,11 @@ class RPAConfigUI(QMainWindow):
                     "login_action": "Enter"
                 },
                 "http_basic": {
-                    "username": self.auth_user.text() if self.tipo_auth.currentText() == "http_basic" else "",
-                    "password": self.auth_pass.text() if self.tipo_auth.currentText() == "http_basic" else ""
+                    "username": http_user,
+                    "password": http_pass
                 },
-                "pantalla": {
-                    "viewport_width": self.viewport_width.value(),
-                    "viewport_height": self.viewport_height.value(),
-                    "captura_pagina_completa": self.captura_completa.isChecked()
-                }
+                "pantalla": pantalla
             },
-            "correo": {
-                "usar_remoto": self.smtp_selector.currentText() == "Remoto",
-                "smtp_local": {
-                    "servidor": self.smtp_local_host.text(),
-                    "puerto": int(self.smtp_local_port.text())
-                },
-                "smtp_remoto": {
-                    "servidor": self.smtp_remoto_host.text(),
-                    "puerto": int(self.smtp_remoto_port.text()),
-                    "usuario": self.remitente.text(),
-                    "clave_aplicacion": self.cred_remoto.text()
-                },
-                "remitente": self.remitente.text(),
-                "destinatarios": [x.strip() for x in self.destinatarios.text().split(",") if x.strip()],
-                "cc": [x.strip() for x in self.cc.text().split(",") if x.strip()],
-                "asunto": self.asunto.text(),
-                "incluir_fecha": self.incluir_fecha.isChecked(),
-                "cuerpo_html": self.cuerpo_html.toPlainText() or PLANTILLA_HTML_POR_DEFECTO
-            },
-            "programacion": {
-                "frecuencia": self.frecuencia.currentText(),
-                "intervalo": int(self.intervalo.text()),
-                "hora_inicio": self.hora_inicio.text()
-            }
+            "correo": correo,
+            "programacion": programacion
         }
-
-        return config

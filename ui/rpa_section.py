@@ -10,43 +10,54 @@ def crear_seccion_rpa(parent):
     form = QFormLayout()
     form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
 
-    # === Nombre del RPA ===
+    # === Nombre del RPA y autenticación ===
     parent.nombre_rpa = QLineEdit()
     parent.nombre_rpa.setPlaceholderText("Ej: Monitoreo Principal")
-    parent.nombre_rpa.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-    # === Tipo de autenticación ===
     parent.tipo_auth = QComboBox()
     parent.tipo_auth.addItems(["form_js", "http_basic"])
     parent.tipo_auth.currentTextChanged.connect(lambda tipo: update_auth_fields(parent, tipo))
 
-    parent.modo_visible = QCheckBox("Modo navegador visible")
-
     form.addRow("Nombre del RPA:", parent.nombre_rpa)
     form.addRow("Tipo de autenticación:", parent.tipo_auth)
-    form.addRow(parent.modo_visible)
 
     # === Autenticación form_js ===
     formjs_widget = QWidget()
     formjs_layout = QFormLayout(formjs_widget)
 
+    # Selectores ocultables
     parent.selector_user = QLineEdit()
     parent.selector_user.setPlaceholderText("#selector del input de usuario")
 
-    parent.valor_user = QLineEdit()
-    parent.valor_user.setPlaceholderText("Valor del usuario (Ej: admin)")
-
     parent.selector_pass = QLineEdit()
     parent.selector_pass.setPlaceholderText("#selector del input de contraseña")
+
+    # Valores visibles siempre
+    parent.valor_user = QLineEdit()
+    parent.valor_user.setPlaceholderText("Valor del usuario (Ej: admin)")
 
     parent.valor_pass = QLineEdit()
     parent.valor_pass.setEchoMode(QLineEdit.Password)
     parent.valor_pass.setPlaceholderText("Valor de la contraseña")
 
-    formjs_layout.addRow("Selector usuario:", parent.selector_user)
+    # Grupo para selectores opcionales (ocultables)
+    parent.selectores_widget = QWidget()
+    selectores_layout = QFormLayout(parent.selectores_widget)
+    selectores_layout.addRow("Selector usuario:", parent.selector_user)
+    selectores_layout.addRow("Selector contraseña:", parent.selector_pass)
+
+    # Checkbox para mostrar/ocultar selectores
+    parent.toggle_selectores = QCheckBox("Selectores personalizados")
+    parent.toggle_selectores.setChecked(False)
+    parent.toggle_selectores.toggled.connect(lambda state: parent.selectores_widget.setVisible(state))
+
+    # Layout final del form_js
+    formjs_layout.addRow(parent.toggle_selectores)
+    formjs_layout.addRow(parent.selectores_widget)
     formjs_layout.addRow("Valor usuario:", parent.valor_user)
-    formjs_layout.addRow("Selector contraseña:", parent.selector_pass)
     formjs_layout.addRow("Valor contraseña:", parent.valor_pass)
+
+    parent.selectores_widget.setVisible(False)  # Ocultar por defecto
 
     # === Autenticación http_basic ===
     basic_widget = QWidget()
@@ -62,14 +73,16 @@ def crear_seccion_rpa(parent):
     basic_layout.addRow("Usuario:", parent.basic_user)
     basic_layout.addRow("Contraseña:", parent.basic_pass)
 
-    # === Stack dinámico de autenticación ===
+    # === Stack de autenticación ===
     parent.auth_stacked = QStackedWidget()
     parent.auth_stacked.addWidget(formjs_widget)   # index 0
     parent.auth_stacked.addWidget(basic_widget)    # index 1
-
     form.addRow(parent.auth_stacked)
 
-    # === Resolución del navegador ===
+    # === Configuración navegador ===
+    navegador_group = QGroupBox("Configuración de Navegador")
+    navegador_layout = QFormLayout()
+
     parent.viewport_width = QSpinBox()
     parent.viewport_width.setRange(800, 3840)
     parent.viewport_width.setValue(1920)
@@ -78,17 +91,22 @@ def crear_seccion_rpa(parent):
     parent.viewport_height.setRange(600, 2160)
     parent.viewport_height.setValue(1080)
 
-    pantalla_layout = QHBoxLayout()
-    pantalla_layout.addWidget(QLabel("Ancho:"))
-    pantalla_layout.addWidget(parent.viewport_width)
-    pantalla_layout.addWidget(QLabel("Alto:"))
-    pantalla_layout.addWidget(parent.viewport_height)
+    resol_layout = QHBoxLayout()
+    resol_layout.addWidget(QLabel("Ancho:"))
+    resol_layout.addWidget(parent.viewport_width)
+    resol_layout.addWidget(QLabel("Alto:"))
+    resol_layout.addWidget(parent.viewport_height)
 
     parent.captura_completa = QCheckBox("Captura pantalla completa")
     parent.captura_completa.setChecked(True)
 
-    form.addRow("Resolución navegador:", pantalla_layout)
-    form.addRow(parent.captura_completa)
+    parent.modo_visible = QCheckBox("Modo navegador visible")
+
+    navegador_layout.addRow("Resolución navegador:", resol_layout)
+    navegador_layout.addRow(parent.captura_completa)
+    navegador_layout.addRow(parent.modo_visible)
+    navegador_group.setLayout(navegador_layout)
+    form.addRow(navegador_group)
 
     # === Secuencia de URLs ===
     parent.urls_group = QGroupBox("Secuencia de URLs a visitar")
@@ -114,12 +132,10 @@ def crear_seccion_rpa(parent):
     return grupo
 
 def update_auth_fields(parent, auth_type):
-    """Actualiza la vista del stack según el tipo de autenticación."""
     index = 0 if auth_type == "form_js" else 1
     parent.auth_stacked.setCurrentIndex(index)
 
 def add_url_widget(parent, is_initial=False):
-    """Añade un widget de URL con botón eliminar (excepto el primero)."""
     url_widget = URLRouteWidget(
         url_text="",
         wait_time=0 if is_initial else 10000
@@ -133,7 +149,6 @@ def add_url_widget(parent, is_initial=False):
     parent.url_routes.append(url_widget)
 
 def remove_url_widget(parent, widget):
-    """Elimina un widget de URL de la interfaz."""
     parent.urls_list.removeWidget(widget)
     widget.setParent(None)
     parent.url_routes.remove(widget)
