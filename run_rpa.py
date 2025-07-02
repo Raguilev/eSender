@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+from datetime import datetime
 from rpa_runner.navigation import ejecutar_navegacion
 from rpa_runner.mailer import enviar_reporte_por_correo
 
@@ -12,7 +13,7 @@ if len(sys.argv) < 2:
 config_path = sys.argv[1]
 
 if not os.path.exists(config_path):
-    print(f"Archivo no encontrado: {config_path}")
+    print(f"Error: archivo no encontrado: {config_path}")
     sys.exit(1)
 
 # === Cargar configuración JSON ===
@@ -28,31 +29,30 @@ correo = config.get("correo", {})
 
 # === Validaciones esenciales ===
 if not rpa.get("url_ruta") or not rpa["url_ruta"][0].get("url"):
-    print("Error: Debes especificar al menos una URL de acceso inicial.")
+    print("Error: debes especificar al menos una URL de acceso inicial.")
     sys.exit(1)
 
-usar_remoto = correo.get("usar_remoto", False)
-if usar_remoto:
-    smtp_remoto = correo.get("smtp_remoto", {})
-    if not smtp_remoto.get("usuario") or not smtp_remoto.get("clave_aplicacion"):
-        print("Error: Faltan credenciales para el servidor SMTP remoto.")
+if correo.get("usar_remoto"):
+    smtp = correo.get("smtp_remoto", {})
+    if not smtp.get("usuario") or not smtp.get("clave_aplicacion"):
+        print("Error: faltan credenciales para el servidor SMTP remoto.")
         sys.exit(1)
 else:
-    smtp_local = correo.get("smtp_local", {})
-    if not smtp_local.get("servidor"):
-        print("Advertencia: No se especificó un servidor SMTP local.")
+    smtp = correo.get("smtp_local", {})
+    if not smtp.get("servidor"):
+        print("Advertencia: no se especificó un servidor SMTP local.")
 
-# === Ejecutar navegación y capturas múltiples ===
+# === Ejecutar navegación y capturas ===
 try:
     capturas, timestamp = ejecutar_navegacion(rpa)
     print(f"{len(capturas)} capturas generadas:")
     for idx, (url, path) in enumerate(capturas):
-        print(f"  • [{idx+1}] {url} -> {path}")
+        print(f"  [{idx + 1}] {url} -> {path}")
 except Exception as e:
     print(f"Error durante la navegación: {e}")
     sys.exit(1)
 
-# === Enviar correo con todas las capturas ===
+# === Enviar correo ===
 try:
     enviar_reporte_por_correo(correo, rpa, capturas, timestamp)
     print("Correo enviado correctamente.")

@@ -102,7 +102,12 @@
         },
         "asunto": { "type": "string" },
         "incluir_fecha": { "type": "boolean" },
-        "cuerpo_html": { "type": "string" }
+        "cuerpo_html": { "type": "string" },
+        "adjuntar_capturas": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indica si se deben adjuntar las capturas como archivos además de mostrarlas embebidas en el cuerpo HTML"
+        }
       }
     },
     "programacion": {

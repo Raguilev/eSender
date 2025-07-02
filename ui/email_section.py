@@ -72,7 +72,7 @@ def crear_seccion_email(parent):
     # Añadir widgets al stack
     parent.smtp_stack.addWidget(parent.smtp_local_widget)
     parent.smtp_stack.addWidget(parent.smtp_remoto_widget)
-    parent.smtp_stack.setCurrentWidget(parent.smtp_local_widget)  # Inicial
+    parent.smtp_stack.setCurrentWidget(parent.smtp_local_widget)
 
     form.addRow(parent.smtp_stack)
 
@@ -102,6 +102,11 @@ def crear_seccion_email(parent):
     form.addRow(parent.incluir_fecha)
     form.addRow("Cuerpo HTML:", parent.cuerpo_html)
 
+    # =========== Nueva opción: Adjuntar capturas como archivos ===========
+    parent.adjuntar_capturas = QCheckBox("Adjuntar capturas como archivos PNG")
+    parent.adjuntar_capturas.setChecked(False)
+    form.addRow(parent.adjuntar_capturas)
+
     # =========== Botón: Probar Conexión ===========
     btn_test_smtp = QPushButton("Probar conexión SMTP")
     btn_test_smtp.clicked.connect(lambda: probar_conexion_smtp(parent))
@@ -124,7 +129,6 @@ def crear_seccion_email(parent):
     parent.smtp_selector.currentTextChanged.connect(parent.update_smtp_fields)
 
     return grupo
-
 
 def probar_conexion_smtp(parent):
     try:

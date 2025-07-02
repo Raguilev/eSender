@@ -60,7 +60,7 @@ def save_config(parent):
     try:
         data = parent.obtener_config_desde_ui()
 
-        # === Validar con JSON Schema ===
+        # Validación con JSON Schema
         with open(SCHEMA_FILE, encoding="utf-8") as schema_file:
             schema = json.load(schema_file)
             validate(instance=data, schema=schema)
@@ -69,7 +69,6 @@ def save_config(parent):
         nombre_rpa = data["rpa"].get("nombre", "rpa_email").replace(" ", "_")
         ruta_json = os.path.join(CARPETA_CONFIGS, f"{nombre_rpa}.json")
 
-        # === Verificar si ya existe ===
         if os.path.exists(ruta_json):
             respuesta = QMessageBox.question(
                 parent,
