@@ -97,10 +97,15 @@ class RPAConfigUI(QMainWindow):
         for idx, w in enumerate(self.url_routes):
             url = w.url_input.text().strip()
             wait = int(w.wait_time_input.value())
+            capturar = w.capture_checkbox.isChecked()
             if idx == 0 and not url:
                 raise ValueError("La URL de acceso inicial es obligatoria.")
             if url:
-                urls_config.append({"url": url, "wait_time_ms": wait})
+                urls_config.append({
+                    "url": url,
+                    "wait_time_ms": wait,
+                    "capturar": capturar
+                })
 
         # === Autenticación ===
         if self.tipo_auth.currentText() == "form_js":
@@ -213,7 +218,11 @@ class RPAConfigUI(QMainWindow):
         self.url_routes.clear()
 
         for i, ruta in enumerate(rpa.get("url_ruta", [])):
-            w = URLRouteWidget(url_text=ruta.get("url", ""), wait_time=ruta.get("wait_time_ms", 10000))
+            w = URLRouteWidget(
+                url_text=ruta.get("url", ""),
+                wait_time=ruta.get("wait_time_ms", 10000),
+                capturar=ruta.get("capturar", False)
+            )
             self.url_routes.append(w)
             self.urls_list.addWidget(w)
             if i == 0:

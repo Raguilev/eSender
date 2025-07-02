@@ -4,9 +4,7 @@ import glob
 from datetime import datetime
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from jsonschema import validate, ValidationError
-from constants import PLANTILLA_HTML_POR_DEFECTO, SCHEMA_FILE
-from constants import CARPETA_CONFIGS
-
+from constants import PLANTILLA_HTML_POR_DEFECTO, SCHEMA_FILE, CARPETA_CONFIGS
 
 
 def agregar_botones_carga(parent):
@@ -67,15 +65,37 @@ def save_config(parent):
             schema = json.load(schema_file)
             validate(instance=data, schema=schema)
 
-        # === Guardar archivo ===
         os.makedirs(CARPETA_CONFIGS, exist_ok=True)
         nombre_rpa = data["rpa"].get("nombre", "rpa_email").replace(" ", "_")
         ruta_json = os.path.join(CARPETA_CONFIGS, f"{nombre_rpa}.json")
 
+        # === Verificar si ya existe ===
+        if os.path.exists(ruta_json):
+            respuesta = QMessageBox.question(
+                parent,
+                "Archivo ya existe",
+                f"El archivo '{ruta_json}' ya existe.\n¿Deseas sobrescribirlo?",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                QMessageBox.No
+            )
+            if respuesta == QMessageBox.Cancel:
+                return
+            elif respuesta == QMessageBox.No:
+                nuevo_nombre, _ = QFileDialog.getSaveFileName(
+                    parent,
+                    "Guardar configuración como...",
+                    os.path.join(CARPETA_CONFIGS, f"{nombre_rpa}_nuevo.json"),
+                    "Archivos JSON (*.json)"
+                )
+                if not nuevo_nombre:
+                    return
+                if not nuevo_nombre.endswith(".json"):
+                    nuevo_nombre += ".json"
+                ruta_json = nuevo_nombre
+
         with open(ruta_json, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
-        # === Validación adicional correo ===
         if data["correo"].get("usar_remoto"):
             usuario_remoto = data["correo"].get("smtp_remoto", {}).get("usuario", "")
             remitente = data["correo"].get("remitente", "")

@@ -25,7 +25,8 @@
             "required": ["url", "wait_time_ms"],
             "properties": {
               "url": { "type": "string", "pattern": "^https?://.*|/.*" },
-              "wait_time_ms": { "type": "integer", "minimum": 0 }
+              "wait_time_ms": { "type": "integer", "minimum": 0 },
+              "capturar": { "type": "boolean" }
             }
           }
         },
@@ -115,7 +116,7 @@
         "intervalo": { "type": "integer", "minimum": 1 },
         "hora_inicio": {
           "type": "string",
-          "pattern": "^\\d{2}:\\d{2}$"
+          "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
         }
       }
     }

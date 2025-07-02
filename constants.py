@@ -5,13 +5,15 @@ PLANTILLA_HTML_POR_DEFECTO = """
 
 <p><b>Fecha y hora de captura:</b> {{fecha}}</p>
 
-<p><b>Vista previa del panel:</b></p>
-<img src="cid:screenshot" alt="Panel" />
-
 <p><b>Última URL visitada:</b> <a href="{{url_dashboard}}" target="_blank">{{url_dashboard}}</a></p>
 
 <p><b>Secuencia completa de URLs visitadas:</b></p>
 {{lista_urls}}
+
+<p><b>Capturas realizadas:</b></p>
+<p>Las capturas correspondientes a las URLs seleccionadas se muestran a continuación en orden de ejecución.</p>
+
+{{bloque_capturas}}
 
 <br><p><small>Este mensaje fue generado automáticamente por el sistema RPA.</small></p>
 """
