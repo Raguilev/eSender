@@ -66,16 +66,6 @@ class RPAConfigUI(QMainWindow):
 
         conectar_botones_accion(self)
 
-    def update_auth_fields(self, auth_type: str):
-        is_form = auth_type == "form_js"
-        self.selector_user.setVisible(is_form)
-        self.valor_user.setVisible(is_form)
-        self.selector_pass.setVisible(is_form)
-        self.valor_pass.setVisible(is_form)
-
-        self.basic_user.setVisible(not is_form)
-        self.basic_pass.setVisible(not is_form)
-
     def update_smtp_fields(self, selected: str):
         if selected == "Remoto":
             self.smtp_stack.setCurrentWidget(self.smtp_remoto_widget)
@@ -83,10 +73,11 @@ class RPAConfigUI(QMainWindow):
             self.smtp_stack.setCurrentWidget(self.smtp_local_widget)
 
     def obtener_config_desde_ui(self):
+        from widgets.url_route_widget import URLRouteWidget
+
         required_attrs = [
             "nombre_rpa", "smtp_local_host", "smtp_local_port", "smtp_remoto_host", "smtp_remoto_port",
-            "cred_remoto", "remitente", "destinatarios", "cuerpo_html",
-            "valor_user", "valor_pass", "basic_user", "basic_pass"
+            "cred_remoto", "remitente", "destinatarios", "cuerpo_html"
         ]
         for attr in required_attrs:
             if not hasattr(self, attr):
@@ -95,38 +86,10 @@ class RPAConfigUI(QMainWindow):
         # === URLs ===
         urls_config = []
         for idx, w in enumerate(self.url_routes):
-            url = w.url_input.text().strip()
-            wait = int(w.wait_time_input.value())
-            capturar = w.capture_checkbox.isChecked()
-            if idx == 0 and not url:
+            data = w.get_data()
+            if idx == 0 and not data["url"]:
                 raise ValueError("La URL de acceso inicial es obligatoria.")
-            if url:
-                urls_config.append({
-                    "url": url,
-                    "wait_time_ms": wait,
-                    "capturar": capturar
-                })
-
-        # === Autenticación ===
-        if self.tipo_auth.currentText() == "form_js":
-            if self.checkbox_selectores.isChecked():
-                form_user_selector = self.selector_user.text().strip() or "#username"
-                form_pass_selector = self.selector_pass.text().strip() or "#password"
-            else:
-                form_user_selector = "#username"
-                form_pass_selector = "#password"
-
-            form_user_value = self.valor_user.text().strip()
-            form_pass_value = self.valor_pass.text().strip()
-            http_user = ""
-            http_pass = ""
-        else:
-            form_user_selector = "#username"
-            form_user_value = ""
-            form_pass_selector = "#password"
-            form_pass_value = ""
-            http_user = self.basic_user.text().strip()
-            http_pass = self.basic_pass.text().strip()
+            urls_config.append(data)
 
         # === Pantalla ===
         pantalla = {
@@ -146,7 +109,7 @@ class RPAConfigUI(QMainWindow):
             "smtp_remoto": {
                 "servidor": self.smtp_remoto_host.text().strip(),
                 "puerto": int(self.smtp_remoto_port.text() or 587),
-                "usuario": self.remitente.text().strip(),
+                "usuario": self.smtp_remoto_user.text().strip(),
                 "clave_aplicacion": self.cred_remoto.text().strip()
             },
             "remitente": self.remitente.text().strip(),
@@ -169,20 +132,8 @@ class RPAConfigUI(QMainWindow):
             "rpa": {
                 "nombre": self.nombre_rpa.text().strip(),
                 "modo_navegador_visible": self.modo_visible.isChecked(),
-                "tipo_autenticacion": self.tipo_auth.currentText(),
-                "url_ruta": urls_config,
-                "form_js": {
-                    "username_selector": form_user_selector,
-                    "username_value": form_user_value,
-                    "password_selector": form_pass_selector,
-                    "password_value": form_pass_value,
-                    "login_action": "Enter"
-                },
-                "http_basic": {
-                    "username": http_user,
-                    "password": http_pass
-                },
-                "pantalla": pantalla
+                "pantalla": pantalla,
+                "url_ruta": urls_config
             },
             "correo": correo,
             "programacion": programacion
@@ -195,18 +146,6 @@ class RPAConfigUI(QMainWindow):
         rpa = data.get("rpa", {})
         self.nombre_rpa.setText(rpa.get("nombre", ""))
         self.modo_visible.setChecked(rpa.get("modo_navegador_visible", False))
-        self.tipo_auth.setCurrentText(rpa.get("tipo_autenticacion", "form_js"))
-        self.update_auth_fields(self.tipo_auth.currentText())
-
-        form_js = rpa.get("form_js", {})
-        self.selector_user.setText(form_js.get("username_selector", ""))
-        self.valor_user.setText(form_js.get("username_value", ""))
-        self.selector_pass.setText(form_js.get("password_selector", ""))
-        self.valor_pass.setText(form_js.get("password_value", ""))
-
-        http_basic = rpa.get("http_basic", {})
-        self.basic_user.setText(http_basic.get("username", ""))
-        self.basic_pass.setText(http_basic.get("password", ""))
 
         pantalla = rpa.get("pantalla", {})
         self.viewport_width.setValue(pantalla.get("viewport_width", 1920))
@@ -218,11 +157,7 @@ class RPAConfigUI(QMainWindow):
         self.url_routes.clear()
 
         for i, ruta in enumerate(rpa.get("url_ruta", [])):
-            w = URLRouteWidget(
-                url_text=ruta.get("url", ""),
-                wait_time=ruta.get("wait_time_ms", 10000),
-                capturar=ruta.get("capturar", False)
-            )
+            w = URLRouteWidget(ruta_config=ruta)
             self.url_routes.append(w)
             self.urls_list.addWidget(w)
             if i == 0:
