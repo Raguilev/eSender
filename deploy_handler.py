@@ -1,42 +1,88 @@
 import os
 import shutil
 import json
+import zipfile
+import subprocess
 from datetime import datetime
+from PyQt5.QtWidgets import QMessageBox
 
-def create_rpa_package(json_path: str):
+def create_rpa_package(json_path: str, modo: str = "zip"):
     with open(json_path, encoding="utf-8") as f:
         config = json.load(f)
 
     rpa_name = config["rpa"]["nombre"].replace(" ", "_")
-    package_name = rpa_name
-    package_dir = os.path.join("RPAs_Generados", package_name)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    package_name = f"{rpa_name}_{timestamp}"
+    base_dir = os.path.join("RPAs_Generados", package_name)
+    os.makedirs(base_dir, exist_ok=True)
 
-    os.makedirs("RPAs_Generados", exist_ok=True)
-
-    if os.path.exists(package_dir):
-        shutil.rmtree(package_dir)
-    os.makedirs(package_dir, exist_ok=True)
-
-    # Guardar JSON
-    json_dest = os.path.join(package_dir, "rpa_email.json")
+    # === Guardar JSON de configuración ===
+    json_dest = os.path.join(base_dir, "rpa_email.json")
     with open(json_dest, "w", encoding="utf-8") as f_out:
         json.dump(config, f_out, indent=4, ensure_ascii=False)
 
-    # Crear scripts
-    run_path = os.path.join(package_dir, "run_rpa.py")
+    # === Crear script run_rpa.py ===
+    run_path = os.path.join(base_dir, "run_rpa.py")
     with open(run_path, "w", encoding="utf-8") as f:
         f.write(generate_run_rpa_script())
 
-    vbs_name = f"ejecutar_{rpa_name}.vbs"
-    vbs_path = os.path.join(package_dir, vbs_name)
-    with open(vbs_path, "w", encoding="utf-8") as f:
-        f.write(generate_vbs_script("rpa_email.json"))
+    # Copiar carpeta rpa_runner
+    origen_runner = os.path.join(os.path.dirname(__file__), "rpa_runner")
+    destino_runner = os.path.join(base_dir, "rpa_runner")
+    shutil.copytree(origen_runner, destino_runner, dirs_exist_ok=True)
 
-    bat_path = os.path.join(package_dir, "crear_tarea.bat")
+    # === Crear ejecutable o ZIP ===
+    if modo == "exe":
+        generar_exe(base_dir)
+    else:
+        generar_zip(base_dir)
+
+    print(f"RPA desplegado correctamente en: {base_dir}")
+
+def generar_zip(folder_path: str):
+    # === 1. Crear archivos auxiliares ===
+    bat_path = os.path.join(folder_path, "ejecutar_rpa.bat")
+    instrucciones_path = os.path.join(folder_path, "instrucciones.txt")
+
     with open(bat_path, "w", encoding="utf-8") as f:
-        f.write(generate_bat_script(rpa_name, vbs_name, config.get("programacion", {})))
+        f.write('@echo off\n')
+        f.write('echo Ejecutando RPA...\n')
+        f.write('python run_rpa.py\n')
+        f.write('pause\n')
 
-    print(f"RPA empaquetado correctamente en: {package_dir}")
+    with open(instrucciones_path, "w", encoding="utf-8") as f:
+        f.write("=== INSTRUCCIONES DE USO ===\n\n")
+        f.write("1. Asegúrate de tener Python 3 instalado.\n")
+        f.write("2. Abre la carpeta del RPA y haz doble clic en 'ejecutar_rpa.bat'.\n")
+        f.write("3. Si lo deseas, puedes modificar el archivo 'rpa_email.json'.\n")
+        f.write("4. Si tienes problemas con Playwright, ejecuta:\n")
+        f.write("   python -m playwright install\n")
+
+    # === 2. Comprimir ===
+    zip_path = folder_path + ".zip"
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                filepath = os.path.join(root, file)
+                arcname = os.path.relpath(filepath, folder_path)
+                zipf.write(filepath, arcname)
+
+    print(f"ZIP generado en: {zip_path}")
+
+def generar_exe(folder_path: str):
+    script_path = os.path.join(folder_path, "run_rpa.py")
+    cmd = [
+        "pyinstaller",
+        "--onefile",
+        "--clean",
+        "--distpath", folder_path,
+        "--workpath", os.path.join(folder_path, "build"),
+        "--specpath", os.path.join(folder_path, "spec"),
+        script_path
+    ]
+    print("⚙️ Generando ejecutable...")
+    subprocess.run(cmd, check=True)
+    print("✔️ Ejecutable generado en la carpeta:", folder_path)
 
 def generate_run_rpa_script():
     return '''\
@@ -47,33 +93,28 @@ from rpa_runner.navigation import ejecutar_navegacion
 from rpa_runner.mailer import enviar_reporte_por_correo
 
 if len(sys.argv) < 2:
-    print("Uso: python run_rpa.py <ruta_config.json>")
-    sys.exit(1)
-
-config_path = sys.argv[1]
+    config_path = "rpa_email.json"
+else:
+    config_path = sys.argv[1]
 
 if not os.path.exists(config_path):
-    print(f"Error: archivo no encontrado: {config_path}")
+    print(f"No se encontró el archivo de configuración: {config_path}")
     sys.exit(1)
 
-try:
-    with open(config_path, encoding="utf-8") as f:
-        config = json.load(f)
-except Exception as e:
-    print(f"Error al leer el archivo de configuración: {e}")
-    sys.exit(1)
+with open(config_path, encoding="utf-8") as f:
+    config = json.load(f)
 
 rpa = config.get("rpa", {})
 correo = config.get("correo", {})
 
 if not rpa.get("url_ruta") or not rpa["url_ruta"][0].get("url"):
-    print("Error: debes especificar al menos una URL de acceso inicial.")
+    print("Debes especificar al menos una URL de acceso inicial.")
     sys.exit(1)
 
 if correo.get("usar_remoto"):
     smtp = correo.get("smtp_remoto", {})
     if not smtp.get("usuario") or not smtp.get("clave_aplicacion"):
-        print("Error: faltan credenciales para el servidor SMTP remoto.")
+        print("faltan credenciales para SMTP remoto.")
         sys.exit(1)
 else:
     smtp = correo.get("smtp_local", {})
@@ -82,9 +123,7 @@ else:
 
 try:
     capturas, timestamp = ejecutar_navegacion(rpa)
-    print(f"{len(capturas)} capturas generadas:")
-    for idx, (url, path) in enumerate(capturas):
-        print(f"  [{idx + 1}] {url} -> {path}")
+    print(f"{len(capturas)} capturas generadas.")
 except Exception as e:
     print(f"Error durante la navegación: {e}")
     sys.exit(1)
@@ -97,30 +136,19 @@ except Exception as e:
     sys.exit(1)
 '''
 
-def generate_vbs_script(json_filename="rpa_email.json"):
-    return f'''\
-Set WshShell = CreateObject("WScript.Shell")
-WshShell.CurrentDirectory = WScript.ScriptFullName
-WshShell.CurrentDirectory = Left(WshShell.CurrentDirectory, InStrRev(WshShell.CurrentDirectory, "\\") - 1)
-WshShell.Run "cmd /c python run_rpa.py {json_filename}", 0, False
-'''
+def preguntar_modo_deploy(parent) -> str:
+    msg = QMessageBox(parent)
+    msg.setWindowTitle("Modo de despliegue")
+    msg.setText("¿Cómo deseas empaquetar este RPA?")
+    msg.setInformativeText("Selecciona el formato de distribución:")
+    zip_btn = msg.addButton("Generar .ZIP", QMessageBox.AcceptRole)
+    exe_btn = msg.addButton("Generar .EXE", QMessageBox.AcceptRole)
+    cancel_btn = msg.addButton("Cancelar", QMessageBox.RejectRole)
+    msg.setDefaultButton(zip_btn)
+    msg.exec_()
 
-def generate_bat_script(rpa_name, vbs_filename, programacion):
-    frecuencia = programacion.get("frecuencia", "hourly")
-    intervalo = programacion.get("intervalo", 6)
-    hora_inicio = programacion.get("hora_inicio", "00:00")
-
-    return f'''\
-@echo off
-SET NOMBRE_TAREA={rpa_name}
-SET CARPETA=%~dp0
-SET VBS_PATH=%CARPETA%{vbs_filename}
-
-schtasks /create /f /tn "%NOMBRE_TAREA%" ^
-    /tr "wscript.exe \\"%VBS_PATH%\\"" ^
-    /sc {frecuencia} /mo {intervalo} /st {hora_inicio} ^
-    /ru SYSTEM
-
-echo Tarea programada '%NOMBRE_TAREA%' creada exitosamente.
-pause
-'''
+    if msg.clickedButton() == zip_btn:
+        return "zip"
+    elif msg.clickedButton() == exe_btn:
+        return "exe"
+    return None

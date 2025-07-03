@@ -3,7 +3,7 @@ import json
 import tempfile
 from PyQt5.QtCore import QProcess
 from PyQt5.QtWidgets import QMessageBox
-from deploy_handler import create_rpa_package
+from deploy_handler import create_rpa_package, preguntar_modo_deploy
 from jsonschema import validate, ValidationError
 from constants import SCHEMA_FILE
 from ui.config_loader import save_config
@@ -15,7 +15,6 @@ def conectar_botones_accion(parent):
 
 def ejecutar_rpa(parent):
     try:
-        # === Generar configuración temporal ===
         data = parent.obtener_config_desde_ui()
 
         with open(SCHEMA_FILE, encoding="utf-8") as schema_file:
@@ -26,7 +25,6 @@ def ejecutar_rpa(parent):
             json.dump(data, tmp, indent=4, ensure_ascii=False)
             tmp_path = tmp.name
 
-        # === Ejecutar el proceso ===
         parent.process = QProcess(parent)
         parent.process.setProgram("python")
         parent.process.setArguments(["run_rpa.py", tmp_path])
@@ -46,8 +44,15 @@ def hacer_deploy(parent):
         json_path = save_config(parent)
         if not json_path:
             return
-        create_rpa_package(json_path)
-        QMessageBox.information(parent, "Deploy", "Se ha generado el paquete del RPA exitosamente.")
+
+        modo = preguntar_modo_deploy(parent)
+        if not modo:
+            return
+
+        create_rpa_package(json_path, modo)
+
+        print(f"RPA desplegado exitosamente como {modo.upper()}")
+
     except Exception as e:
         QMessageBox.critical(parent, "Error", f"Error durante el deploy:\n{e}")
 

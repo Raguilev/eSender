@@ -9,7 +9,7 @@ from ui.schedule_section import crear_seccion_schedule
 from ui.buttons_section import conectar_botones_accion
 from ui.config_loader import agregar_botones_carga
 from constants import PLANTILLA_HTML_POR_DEFECTO
-
+from ui.config_loader import calcular_hash_config
 
 class RPAConfigUI(QMainWindow):
     def __init__(self):
@@ -65,7 +65,9 @@ class RPAConfigUI(QMainWindow):
         self.setCentralWidget(central)
 
         conectar_botones_accion(self)
-
+        self.last_saved_path = None
+        self.last_config_hash = None  # Para detectar si se modificó la configuración
+    
     def update_smtp_fields(self, selected: str):
         if selected == "Remoto":
             self.smtp_stack.setCurrentWidget(self.smtp_remoto_widget)
@@ -188,3 +190,5 @@ class RPAConfigUI(QMainWindow):
         self.frecuencia.setCurrentText(prog.get("frecuencia", "daily"))
         self.intervalo.setText(str(prog.get("intervalo", 1)))
         self.hora_inicio.setText(prog.get("hora_inicio", "00:00"))
+
+        self.last_config_hash = calcular_hash_config(data)
