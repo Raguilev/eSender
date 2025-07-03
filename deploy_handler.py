@@ -16,70 +16,61 @@ def create_rpa_package(json_path: str, modo: str = "zip"):
     base_dir = os.path.join("RPAs_Generados", package_name)
     os.makedirs(base_dir, exist_ok=True)
 
+    # === Guardar JSON de configuración ===
     json_dest = os.path.join(base_dir, "rpa_email.json")
     with open(json_dest, "w", encoding="utf-8") as f_out:
         json.dump(config, f_out, indent=4, ensure_ascii=False)
 
-    run_path = os.path.join(base_dir, "run_rpa.py")
-    with open(run_path, "w", encoding="utf-8") as f:
-        f.write(generate_run_rpa_script())
+    # === Crear script run_rpa.py solo si es modo ZIP ===
+    if modo == "zip":
+        run_path = os.path.join(base_dir, "run_rpa.py")
+        with open(run_path, "w", encoding="utf-8") as f:
+            f.write(generate_run_rpa_script())
 
+    # Copiar carpeta rpa_runner
     origen_runner = os.path.join(os.path.dirname(__file__), "rpa_runner")
     destino_runner = os.path.join(base_dir, "rpa_runner")
     shutil.copytree(origen_runner, destino_runner, dirs_exist_ok=True)
 
     if modo == "exe":
         generar_exe(base_dir)
+        limpiar_artefactos_temporales(base_dir)
+        generar_bat_para_exe(base_dir)
     else:
-        generar_zip(base_dir)
+        generar_bat_para_py(base_dir)
 
+    generar_instrucciones(base_dir, modo)
+    generar_zip(base_dir)
     print(f"RPA desplegado correctamente en: {base_dir}")
 
-def generar_zip(folder_path: str):
-    # === 1. Crear archivos auxiliares ===
+def generar_bat_para_exe(folder_path: str):
+    exe_name = "run_rpa.exe"
     bat_path = os.path.join(folder_path, "ejecutar_rpa.bat")
-    instrucciones_path = os.path.join(folder_path, "instrucciones.txt")
-    programar_bat_path = os.path.join(folder_path, "programar_rpa.bat")
+    with open(bat_path, "w", encoding="utf-8") as f:
+        f.write(f"@echo off\n")
+        f.write(f"cd /d %~dp0\n")
+        f.write(f"{exe_name}\n")
+        f.write(f"pause\n")
 
+def generar_bat_para_py(folder_path: str):
+    bat_path = os.path.join(folder_path, "ejecutar_rpa.bat")
     with open(bat_path, "w", encoding="utf-8") as f:
         f.write('@echo off\n')
         f.write('cd /d %~dp0\n')
-        f.write('echo Ejecutando RPA...\n')
         f.write('python run_rpa.py\n')
         f.write('pause\n')
 
-    json_config_path = os.path.join(folder_path, "rpa_email.json")
-    with open(json_config_path, encoding="utf-8") as f:
-        config = json.load(f)
-
-    nombre_tarea = config["rpa"]["nombre"].replace(" ", "_")
-    hora_inicio = config["programacion"].get("hora_inicio", "08:00")
-    frecuencia = config["programacion"].get("frecuencia", "daily")
-    intervalo = config["programacion"].get("intervalo", 1)
-
-    comando_schtasks = (
-        f'schtasks /Create /TN "{nombre_tarea}" '
-        f'/TR "%~dp0ejecutar_rpa.bat" '
-        f'/SC {frecuencia} /MO {intervalo} /ST {hora_inicio} /RL HIGHEST /F'
-    )
-
-    with open(programar_bat_path, "w", encoding="utf-8") as f:
-        f.write('@echo off\n')
-        f.write('echo Programando tarea en el Programador de Tareas de Windows...\n')
-        f.write(comando_schtasks + '\n')
-        f.write('echo Tarea programada correctamente.\n')
-        f.write('pause\n')
-
+def generar_instrucciones(folder_path: str, modo: str):
+    instrucciones_path = os.path.join(folder_path, "instrucciones.txt")
     with open(instrucciones_path, "w", encoding="utf-8") as f:
         f.write("=== INSTRUCCIONES DE USO ===\n\n")
-        f.write("1. Ejecuta 'programar_rpa.bat' para registrar la tarea automatizada.\n")
-        f.write("2. Puedes revisar o modificar la tarea desde el Programador de Tareas de Windows.\n")
-        f.write("3. Para probarlo manualmente, ejecuta 'ejecutar_rpa.bat'.\n")
-        f.write("4. Asegúrate de tener Python 3 y Playwright instalado:\n")
-        f.write("   python -m pip install playwright\n")
-        f.write("   python -m playwright install\n")
+        f.write("1. Asegúrate de tener Python 3 y Playwright instalado (solo para ZIP).\n")
+        f.write("2. Para ejecutar el RPA, usa 'ejecutar_rpa.bat'.\n")
+        if modo == "zip":
+            f.write("3. Si es necesario, instala Playwright: python -m playwright install\n")
+        f.write("4. Puedes editar 'rpa_email.json' según tus necesidades.\n")
 
-    # === 2. Comprimir ===
+def generar_zip(folder_path: str):
     zip_path = folder_path + ".zip"
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for root, _, files in os.walk(folder_path):
@@ -87,12 +78,13 @@ def generar_zip(folder_path: str):
                 filepath = os.path.join(root, file)
                 arcname = os.path.relpath(filepath, folder_path)
                 zipf.write(filepath, arcname)
-
     print(f"ZIP generado en: {zip_path}")
-
 
 def generar_exe(folder_path: str):
     script_path = os.path.join(folder_path, "run_rpa.py")
+    exe_output = os.path.join(folder_path, "run_rpa.exe")
+    with open(script_path, "w", encoding="utf-8") as f:
+        f.write(generate_run_rpa_script())
     cmd = [
         "pyinstaller",
         "--onefile",
@@ -102,9 +94,17 @@ def generar_exe(folder_path: str):
         "--specpath", os.path.join(folder_path, "spec"),
         script_path
     ]
-    print("Generando ejecutable...")
     subprocess.run(cmd, check=True)
-    print("Ejecutable generado en:", folder_path)
+    print("Ejecutable generado correctamente.")
+
+def limpiar_artefactos_temporales(folder_path: str):
+    for sub in ["build", "spec"]:
+        temp_path = os.path.join(folder_path, sub)
+        if os.path.exists(temp_path):
+            shutil.rmtree(temp_path, ignore_errors=True)
+    py_file = os.path.join(folder_path, "run_rpa.py")
+    if os.path.exists(py_file):
+        os.remove(py_file)
 
 def generate_run_rpa_script():
     return '''\
@@ -136,7 +136,7 @@ if not rpa.get("url_ruta") or not rpa["url_ruta"][0].get("url"):
 if correo.get("usar_remoto"):
     smtp = correo.get("smtp_remoto", {})
     if not smtp.get("usuario") or not smtp.get("clave_aplicacion"):
-        print("Faltan credenciales para SMTP remoto.")
+        print("faltan credenciales para SMTP remoto.")
         sys.exit(1)
 else:
     smtp = correo.get("smtp_local", {})
