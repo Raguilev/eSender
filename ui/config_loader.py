@@ -3,7 +3,7 @@ import json
 import glob
 import hashlib
 from datetime import datetime
-from PyQt5.QtWidgets import QMessageBox, QFileDialog
+from PyQt5.QtWidgets import QMessageBox, QFileDialog, QHBoxLayout, QPushButton
 from jsonschema import validate, ValidationError
 from constants import PLANTILLA_HTML_POR_DEFECTO, SCHEMA_FILE, CARPETA_CONFIGS
 
@@ -14,15 +14,27 @@ def calcular_hash_config(data: dict) -> str:
 
 
 def agregar_botones_carga(parent):
-    from PyQt5.QtWidgets import QHBoxLayout, QPushButton
     layout = QHBoxLayout()
+    btn_nuevo = QPushButton("Nuevo RPA")
     btn_ultima = QPushButton("Cargar última configuración")
     btn_abrir = QPushButton("Abrir configuración...")
+
+    btn_nuevo.clicked.connect(lambda: crear_nueva_config(parent))
     btn_ultima.clicked.connect(lambda: cargar_ultima_config(parent))
     btn_abrir.clicked.connect(lambda: seleccionar_archivo_config(parent))
+
+    layout.addWidget(btn_nuevo)
     layout.addWidget(btn_ultima)
     layout.addWidget(btn_abrir)
+
     parent.central_layout.addLayout(layout)
+
+
+def crear_nueva_config(parent):
+    parent.set_config({})  # limpia todos los campos
+    parent.last_config_hash = None
+    parent.last_saved_path = None
+    parent.save_button.setVisible(False)
 
 
 def cargar_ultima_config(parent):
@@ -54,9 +66,10 @@ def cargar_desde_archivo(parent, ruta):
             validate(instance=data, schema=schema)
 
         parent.set_config(data)
-
-        # Guardar hash para detectar cambios futuros
         parent.last_config_hash = calcular_hash_config(data)
+        parent.last_saved_path = ruta
+
+        parent.save_button.setVisible(False)
 
         QMessageBox.information(parent, "Configuración cargada", f"Se cargó la configuración desde:\n{ruta}")
     except ValidationError as ve:
@@ -77,7 +90,6 @@ def save_config(parent):
         os.makedirs(CARPETA_CONFIGS, exist_ok=True)
         nombre_rpa = data["rpa"].get("nombre", "rpa_email").replace(" ", "_")
         ruta_json = os.path.join(CARPETA_CONFIGS, f"{nombre_rpa}.json")
-
         nuevo_hash = calcular_hash_config(data)
 
         if os.path.exists(ruta_json):
@@ -117,13 +129,12 @@ def save_config(parent):
                     "El remitente no coincide con el usuario SMTP. Esto puede causar problemas con algunos proveedores."
                 )
 
-        # Actualizar el hash luego de guardar correctamente
         parent.last_config_hash = nuevo_hash
-
-        QMessageBox.information(parent, "Éxito", f"Configuración guardada en:\n{ruta_json}")
-
         parent.last_saved_path = ruta_json
         
+        parent.save_button.setVisible(False)
+
+        QMessageBox.information(parent, "Éxito", f"Configuración guardada en:\n{ruta_json}")
         return ruta_json
 
     except ValidationError as ve:

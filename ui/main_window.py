@@ -7,9 +7,8 @@ from ui.rpa_section import crear_seccion_rpa
 from ui.email_section import crear_seccion_email
 from ui.schedule_section import crear_seccion_schedule
 from ui.buttons_section import conectar_botones_accion
-from ui.config_loader import agregar_botones_carga
+from ui.config_loader import agregar_botones_carga, calcular_hash_config
 from constants import PLANTILLA_HTML_POR_DEFECTO
-from ui.config_loader import calcular_hash_config
 
 class RPAConfigUI(QMainWindow):
     def __init__(self):
@@ -51,6 +50,7 @@ class RPAConfigUI(QMainWindow):
         # Botones inferiores
         botones_layout = QHBoxLayout()
         self.save_button = QPushButton("Guardar JSON")
+        self.save_button.setVisible(False)  # Oculto inicialmente
         self.test_button = QPushButton("Test")
         self.deploy_button = QPushButton("Deploy")
         botones_layout.addWidget(self.save_button)
@@ -67,7 +67,55 @@ class RPAConfigUI(QMainWindow):
         conectar_botones_accion(self)
         self.last_saved_path = None
         self.last_config_hash = None  # Para detectar si se modificó la configuración
-    
+
+        self.timer_actualizacion = self.startTimer(1000)
+
+    def timerEvent(self, event):
+        try:
+            actual = self.obtener_config_desde_ui()
+            actual_hash = calcular_hash_config(actual)
+            self.save_button.setVisible(actual_hash != self.last_config_hash)
+        except Exception:
+            self.save_button.setVisible(False)
+
+    def nuevo_rpa(self):
+        from widgets.url_route_widget import URLRouteWidget
+
+        self.nombre_rpa.clear()
+        self.modo_visible.setChecked(False)
+        self.viewport_width.setValue(1920)
+        self.viewport_height.setValue(1080)
+        self.captura_completa.setChecked(True)
+
+        for w in self.url_routes:
+            w.setParent(None)
+        self.url_routes.clear()
+        w = URLRouteWidget()
+        self.url_routes.append(w)
+        self.urls_list.addWidget(w)
+        w.delete_btn.setDisabled(True)
+
+        self.smtp_selector.setCurrentText("Local")
+        self.update_smtp_fields("Local")
+        self.smtp_local_host.clear()
+        self.smtp_local_port.setText("25")
+        self.smtp_remoto_host.clear()
+        self.smtp_remoto_port.setText("587")
+        self.cred_remoto.clear()
+        self.smtp_remoto_user.clear()
+        self.remitente.clear()
+        self.destinatarios.clear()
+        self.cc.clear()
+        self.asunto.clear()
+        self.incluir_fecha.setChecked(True)
+        self.cuerpo_html.setPlainText(PLANTILLA_HTML_POR_DEFECTO)
+
+        self.frecuencia.setCurrentText("daily")
+        self.intervalo.setText("1")
+        self.hora_inicio.setText("00:00")
+
+        self.last_config_hash = calcular_hash_config(self.obtener_config_desde_ui())
+
     def update_smtp_fields(self, selected: str):
         if selected == "Remoto":
             self.smtp_stack.setCurrentWidget(self.smtp_remoto_widget)
@@ -85,7 +133,6 @@ class RPAConfigUI(QMainWindow):
             if not hasattr(self, attr):
                 raise AttributeError(f"Falta el campo requerido: {attr}")
 
-        # === URLs ===
         urls_config = []
         for idx, w in enumerate(self.url_routes):
             data = w.get_data()
@@ -93,14 +140,12 @@ class RPAConfigUI(QMainWindow):
                 raise ValueError("La URL de acceso inicial es obligatoria.")
             urls_config.append(data)
 
-        # === Pantalla ===
         pantalla = {
             "viewport_width": self.viewport_width.value(),
             "viewport_height": self.viewport_height.value(),
             "captura_pagina_completa": self.captura_completa.isChecked()
         }
 
-        # === Correo ===
         usar_remoto = self.smtp_selector.currentText() == "Remoto"
         correo = {
             "usar_remoto": usar_remoto,
@@ -122,14 +167,12 @@ class RPAConfigUI(QMainWindow):
             "cuerpo_html": self.cuerpo_html.toPlainText() or PLANTILLA_HTML_POR_DEFECTO
         }
 
-        # === Programación ===
         programacion = {
             "frecuencia": self.frecuencia.currentText(),
             "intervalo": int(self.intervalo.text()),
             "hora_inicio": self.hora_inicio.text().strip()
         }
 
-        # === Config final ===
         return {
             "rpa": {
                 "nombre": self.nombre_rpa.text().strip(),
@@ -144,7 +187,6 @@ class RPAConfigUI(QMainWindow):
     def set_config(self, data):
         from widgets.url_route_widget import URLRouteWidget
 
-        # === RPA ===
         rpa = data.get("rpa", {})
         self.nombre_rpa.setText(rpa.get("nombre", ""))
         self.modo_visible.setChecked(rpa.get("modo_navegador_visible", False))
@@ -165,7 +207,6 @@ class RPAConfigUI(QMainWindow):
             if i == 0:
                 w.delete_btn.setDisabled(True)
 
-        # === Correo ===
         correo = data.get("correo", {})
         usar_remoto = correo.get("usar_remoto", False)
         self.smtp_selector.setCurrentText("Remoto" if usar_remoto else "Local")
@@ -173,7 +214,6 @@ class RPAConfigUI(QMainWindow):
 
         self.smtp_local_host.setText(correo.get("smtp_local", {}).get("servidor", ""))
         self.smtp_local_port.setText(str(correo.get("smtp_local", {}).get("puerto", 25)))
-
         self.smtp_remoto_host.setText(correo.get("smtp_remoto", {}).get("servidor", ""))
         self.smtp_remoto_port.setText(str(correo.get("smtp_remoto", {}).get("puerto", 587)))
         self.cred_remoto.setText(correo.get("smtp_remoto", {}).get("clave_aplicacion", ""))
@@ -185,7 +225,6 @@ class RPAConfigUI(QMainWindow):
         self.incluir_fecha.setChecked(correo.get("incluir_fecha", True))
         self.cuerpo_html.setPlainText(correo.get("cuerpo_html", ""))
 
-        # === Programación ===
         prog = data.get("programacion", {})
         self.frecuencia.setCurrentText(prog.get("frecuencia", "daily"))
         self.intervalo.setText(str(prog.get("intervalo", 1)))
