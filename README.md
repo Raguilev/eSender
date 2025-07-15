@@ -1,5 +1,5 @@
 
-# eSender - Sistema de Despliegue Seguro de RPA - 
+# eSender - Sistema de Despliegue Seguro de RPA 
 
 Este proyecto permite crear, cifrar, desplegar y ejecutar automatizaciones (RPA) de forma segura, incorporando navegación con Playwright, envío automático de correos y programación de tareas. Está diseñado para proteger la confidencialidad de la configuración, incluso en entornos donde se distribuyen los RPAs como ejecutables o scripts autónomos.
 
