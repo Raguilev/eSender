@@ -8,7 +8,11 @@
       "type": "object",
       "required": ["nombre", "modo_navegador_visible", "pantalla", "url_ruta"],
       "properties": {
-        "nombre": { "type": "string" },
+        "nombre": {
+          "type": "string",
+          "pattern": "^[\\w\\s-]{3,50}$",
+          "description": "Nombre del RPA (entre 3 y 50 caracteres, letras, guiones o espacios)"
+        },
         "modo_navegador_visible": { "type": "boolean" },
         "pantalla": {
           "type": "object",
@@ -28,12 +32,10 @@
             "properties": {
               "url": {
                 "type": "string",
-                "pattern": "^https?://.*|/.*"
+                "pattern": "^(https?|file):\\/\\/.+",
+                "description": "Debe ser una URL http(s) o ruta local válida"
               },
-              "wait_time_ms": {
-                "type": "integer",
-                "minimum": 0
-              },
+              "wait_time_ms": { "type": "integer", "minimum": 0 },
               "capturar": { "type": "boolean" },
               "requiere_autenticacion": { "type": "boolean" },
               "tipo_autenticacion": {
@@ -53,10 +55,10 @@
                   "password_value": { "type": "string" },
                   "login_action": {
                     "type": "string",
-                    "default": "Enter",
-                    "description": "Acción predeterminada para realizar el login, no modificable"
+                    "default": "Enter"
                   }
-                }
+                },
+                "additionalProperties": false
               },
               "http_basic": {
                 "type": "object",
@@ -64,34 +66,39 @@
                 "properties": {
                   "username": { "type": "string" },
                   "password": { "type": "string" }
-                }
-              }
-            },
-            "if": {
-              "properties": { "requiere_autenticacion": { "const": true } }
-            },
-            "then": {
-              "required": ["tipo_autenticacion"],
-              "oneOf": [
-                {
-                  "properties": { "tipo_autenticacion": { "const": "form_js" } },
-                  "required": ["form_js"]
                 },
-                {
-                  "properties": { "tipo_autenticacion": { "const": "http_basic" } },
-                  "required": ["http_basic"]
-                }
-              ]
-            },
-            "else": {
-              "not": {
-                "anyOf": [
-                  { "required": ["tipo_autenticacion"] },
-                  { "required": ["form_js"] },
-                  { "required": ["http_basic"] }
-                ]
+                "additionalProperties": false
               }
-            }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": { "requiere_autenticacion": { "const": true } }
+                },
+                "then": {
+                  "required": ["tipo_autenticacion"],
+                  "oneOf": [
+                    {
+                      "properties": { "tipo_autenticacion": { "const": "form_js" } },
+                      "required": ["form_js"]
+                    },
+                    {
+                      "properties": { "tipo_autenticacion": { "const": "http_basic" } },
+                      "required": ["http_basic"]
+                    }
+                  ]
+                },
+                "else": {
+                  "not": {
+                    "anyOf": [
+                      { "required": ["tipo_autenticacion"] },
+                      { "required": ["form_js"] },
+                      { "required": ["http_basic"] }
+                    ]
+                  }
+                }
+              }
+            ]
           }
         }
       }
@@ -110,7 +117,7 @@
           "required": ["servidor", "puerto"],
           "properties": {
             "servidor": { "type": "string" },
-            "puerto": { "type": "integer" }
+            "puerto": { "type": "integer", "minimum": 1 }
           }
         },
         "smtp_remoto": {
@@ -118,15 +125,19 @@
           "required": ["servidor", "puerto", "usuario", "clave_aplicacion"],
           "properties": {
             "servidor": { "type": "string" },
-            "puerto": { "type": "integer" },
+            "puerto": { "type": "integer", "minimum": 1 },
             "usuario": { "type": "string" },
             "clave_aplicacion": { "type": "string" }
           }
         },
-        "remitente": { "type": "string" },
+        "remitente": {
+          "type": "string",
+          "format": "email"
+        },
         "destinatarios": {
           "type": "array",
-          "items": { "type": "string", "format": "email" }
+          "items": { "type": "string", "format": "email" },
+          "minItems": 1
         },
         "cc": {
           "type": "array",
@@ -137,8 +148,7 @@
         "cuerpo_html": { "type": "string" },
         "adjuntar_capturas": {
           "type": "boolean",
-          "default": false,
-          "description": "Indica si se deben adjuntar las capturas como archivos además de mostrarlas embebidas en el cuerpo HTML"
+          "default": false
         }
       }
     },

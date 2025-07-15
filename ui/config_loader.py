@@ -3,18 +3,25 @@ import json
 import glob
 import hashlib
 from datetime import datetime
+from typing import Dict, Optional
+
 from PyQt5.QtWidgets import QMessageBox, QFileDialog, QHBoxLayout, QPushButton
 from jsonschema import validate, ValidationError
-from constants import PLANTILLA_HTML_POR_DEFECTO, SCHEMA_FILE, CARPETA_CONFIGS
+
+from constants.constants import PLANTILLA_HTML_POR_DEFECTO, SCHEMA_FILE, CARPETA_CONFIGS
 
 
-def calcular_hash_config(data: dict) -> str:
+def calcular_hash_config(data: Dict) -> str:
+    """
+    Calcula un hash SHA-256 del diccionario de configuración JSON.
+    """
     json_str = json.dumps(data, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(json_str.encode("utf-8")).hexdigest()
 
 
 def agregar_botones_carga(parent):
     layout = QHBoxLayout()
+
     btn_nuevo = QPushButton("Nuevo RPA")
     btn_ultima = QPushButton("Cargar última configuración")
     btn_abrir = QPushButton("Abrir configuración...")
@@ -31,7 +38,10 @@ def agregar_botones_carga(parent):
 
 
 def crear_nueva_config(parent):
-    parent.set_config({})  # limpia todos los campos
+    """
+    Limpia los campos de la UI para iniciar una nueva configuración.
+    """
+    parent.set_config({})
     parent.last_config_hash = None
     parent.last_saved_path = None
     parent.save_button.setVisible(False)
@@ -43,8 +53,9 @@ def cargar_ultima_config(parent):
     if not archivos:
         QMessageBox.warning(parent, "No encontrado", "No hay configuraciones guardadas.")
         return
-    ultimo = max(archivos, key=os.path.getmtime)
-    cargar_desde_archivo(parent, ultimo)
+
+    archivo_reciente = max(archivos, key=os.path.getmtime)
+    cargar_desde_archivo(parent, archivo_reciente)
 
 
 def seleccionar_archivo_config(parent):
@@ -56,7 +67,7 @@ def seleccionar_archivo_config(parent):
         cargar_desde_archivo(parent, archivo)
 
 
-def cargar_desde_archivo(parent, ruta):
+def cargar_desde_archivo(parent, ruta: str):
     try:
         with open(ruta, encoding="utf-8") as f:
             data = json.load(f)
@@ -68,18 +79,18 @@ def cargar_desde_archivo(parent, ruta):
         parent.set_config(data)
         parent.last_config_hash = calcular_hash_config(data)
         parent.last_saved_path = ruta
-
         parent.save_button.setVisible(False)
 
         QMessageBox.information(parent, "Configuración cargada", f"Se cargó la configuración desde:\n{ruta}")
+
     except ValidationError as ve:
-        path = " → ".join(str(p) for p in ve.path)
-        QMessageBox.critical(parent, "Error de validación", f"Campo: {path}\nDetalle: {ve.message}")
+        ruta_falla = " → ".join(str(p) for p in ve.path)
+        QMessageBox.critical(parent, "Error de validación", f"Campo inválido: {ruta_falla}\n\nDetalle: {ve.message}")
     except Exception as e:
-        QMessageBox.critical(parent, "Error", f"No se pudo cargar la configuración:\n{e}")
+        QMessageBox.critical(parent, "Error", f"No se pudo cargar el archivo:\n{e}")
 
 
-def save_config(parent):
+def save_config(parent) -> Optional[str]:
     try:
         data = parent.obtener_config_desde_ui()
 
@@ -88,10 +99,11 @@ def save_config(parent):
             validate(instance=data, schema=schema)
 
         os.makedirs(CARPETA_CONFIGS, exist_ok=True)
-        nombre_rpa = data["rpa"].get("nombre", "rpa_email").replace(" ", "_")
-        ruta_json = os.path.join(CARPETA_CONFIGS, f"{nombre_rpa}.json")
+        nombre_base = data["rpa"].get("nombre", "rpa_email").replace(" ", "_")
+        ruta_json = os.path.join(CARPETA_CONFIGS, f"{nombre_base}.json")
         nuevo_hash = calcular_hash_config(data)
 
+        # Validar si ya existe y si cambió
         if os.path.exists(ruta_json):
             if getattr(parent, "last_config_hash", None) != nuevo_hash:
                 respuesta = QMessageBox.question(
@@ -107,7 +119,7 @@ def save_config(parent):
                     nuevo_nombre, _ = QFileDialog.getSaveFileName(
                         parent,
                         "Guardar configuración como...",
-                        os.path.join(CARPETA_CONFIGS, f"{nombre_rpa}_nuevo.json"),
+                        os.path.join(CARPETA_CONFIGS, f"{nombre_base}_nuevo.json"),
                         "Archivos JSON (*.json)"
                     )
                     if not nuevo_nombre:
@@ -116,13 +128,15 @@ def save_config(parent):
                         nuevo_nombre += ".json"
                     ruta_json = nuevo_nombre
 
+        # Guardar archivo
         with open(ruta_json, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
+        # Validación extra para correos remotos
         if data["correo"].get("usar_remoto"):
-            usuario_remoto = data["correo"].get("smtp_remoto", {}).get("usuario", "")
+            smtp_user = data["correo"].get("smtp_remoto", {}).get("usuario", "")
             remitente = data["correo"].get("remitente", "")
-            if remitente and remitente != usuario_remoto:
+            if remitente and remitente != smtp_user:
                 QMessageBox.warning(
                     parent,
                     "Advertencia",
@@ -131,14 +145,14 @@ def save_config(parent):
 
         parent.last_config_hash = nuevo_hash
         parent.last_saved_path = ruta_json
-        
         parent.save_button.setVisible(False)
 
         QMessageBox.information(parent, "Éxito", f"Configuración guardada en:\n{ruta_json}")
         return ruta_json
 
     except ValidationError as ve:
-        path = " → ".join(str(p) for p in ve.path)
-        QMessageBox.critical(parent, "Error de validación", f"Campo: {path}\nDetalle: {ve.message}")
+        ruta_falla = " → ".join(str(p) for p in ve.path)
+        QMessageBox.critical(parent, "Error de validación", f"Campo inválido: {ruta_falla}\n\nDetalle: {ve.message}")
     except Exception as e:
-        QMessageBox.critical(parent, "Error", f"No se pudo guardar: {e}")
+        QMessageBox.critical(parent, "Error", f"No se pudo guardar el archivo:\n{e}")
+        return None

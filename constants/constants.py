@@ -1,4 +1,6 @@
+import os
 # constants.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # === Plantilla HTML por defecto para cuerpo de correo ===
 PLANTILLA_HTML_POR_DEFECTO = """
@@ -22,4 +24,4 @@ PLANTILLA_HTML_POR_DEFECTO = """
 # === Rutas importantes del proyecto ===
 RUTA_CONFIG_PRINCIPAL = "rpa_email.json"
 CARPETA_CONFIGS = "configuraciones_guardadas"
-SCHEMA_FILE = "schemas/rpa_email.schema.json"
+SCHEMA_FILE = os.path.join(BASE_DIR, "..", "schemas", "rpa_email.schema.json")

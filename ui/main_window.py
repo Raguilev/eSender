@@ -8,7 +8,8 @@ from ui.email_section import crear_seccion_email
 from ui.schedule_section import crear_seccion_schedule
 from ui.buttons_section import conectar_botones_accion
 from ui.config_loader import agregar_botones_carga, calcular_hash_config
-from constants import PLANTILLA_HTML_POR_DEFECTO
+from constants.constants import PLANTILLA_HTML_POR_DEFECTO
+from .url_route_widget import URLRouteWidget
 
 class RPAConfigUI(QMainWindow):
     def __init__(self):
@@ -16,28 +17,18 @@ class RPAConfigUI(QMainWindow):
         self.setWindowTitle("Editor de configuración RPA")
         self.resize(900, 750)
 
-        self.config = {
-            "rpa": {},
-            "correo": {},
-            "programacion": {}
-        }
-
+        self.config = {"rpa": {}, "correo": {}, "programacion": {}}
         self.url_routes = []
 
-        # === Layout principal ===
         central = QWidget()
         self.central_layout = QVBoxLayout(central)
-
-        # Botones para cargar configuración
         agregar_botones_carga(self)
 
-        # Scroll principal
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll_content = QWidget()
         self.scroll_layout = QVBoxLayout(scroll_content)
 
-        # Secciones principales
         self.rpa_group = crear_seccion_rpa(self)
         self.scroll_layout.addWidget(self.rpa_group)
 
@@ -47,10 +38,9 @@ class RPAConfigUI(QMainWindow):
         self.schedule_group = crear_seccion_schedule(self)
         self.scroll_layout.addWidget(self.schedule_group)
 
-        # Botones inferiores
         botones_layout = QHBoxLayout()
         self.save_button = QPushButton("Guardar JSON")
-        self.save_button.setVisible(False)  # Oculto inicialmente
+        self.save_button.setVisible(False)
         self.test_button = QPushButton("Test")
         self.deploy_button = QPushButton("Deploy")
         botones_layout.addWidget(self.save_button)
@@ -59,15 +49,13 @@ class RPAConfigUI(QMainWindow):
         self.scroll_layout.addLayout(botones_layout)
         self.scroll_layout.addStretch(1)
 
-        scroll_content.setLayout(self.scroll_layout)
         scroll.setWidget(scroll_content)
         self.central_layout.addWidget(scroll)
         self.setCentralWidget(central)
 
         conectar_botones_accion(self)
         self.last_saved_path = None
-        self.last_config_hash = None  # Para detectar si se modificó la configuración
-
+        self.last_config_hash = None
         self.timer_actualizacion = self.startTimer(1000)
 
     def timerEvent(self, event):
@@ -79,8 +67,6 @@ class RPAConfigUI(QMainWindow):
             self.save_button.setVisible(False)
 
     def nuevo_rpa(self):
-        from widgets.url_route_widget import URLRouteWidget
-
         self.nombre_rpa.clear()
         self.modo_visible.setChecked(False)
         self.viewport_width.setValue(1920)
@@ -117,17 +103,14 @@ class RPAConfigUI(QMainWindow):
         self.last_config_hash = calcular_hash_config(self.obtener_config_desde_ui())
 
     def update_smtp_fields(self, selected: str):
-        if selected == "Remoto":
-            self.smtp_stack.setCurrentWidget(self.smtp_remoto_widget)
-        else:
-            self.smtp_stack.setCurrentWidget(self.smtp_local_widget)
+        self.smtp_stack.setCurrentWidget(
+            self.smtp_remoto_widget if selected == "Remoto" else self.smtp_local_widget
+        )
 
     def obtener_config_desde_ui(self):
-        from widgets.url_route_widget import URLRouteWidget
-
         required_attrs = [
-            "nombre_rpa", "smtp_local_host", "smtp_local_port", "smtp_remoto_host", "smtp_remoto_port",
-            "cred_remoto", "remitente", "destinatarios", "cuerpo_html"
+            "nombre_rpa", "smtp_local_host", "smtp_local_port", "smtp_remoto_host",
+            "smtp_remoto_port", "cred_remoto", "remitente", "destinatarios", "cuerpo_html"
         ]
         for attr in required_attrs:
             if not hasattr(self, attr):
@@ -185,8 +168,6 @@ class RPAConfigUI(QMainWindow):
         }
 
     def set_config(self, data):
-        from widgets.url_route_widget import URLRouteWidget
-
         rpa = data.get("rpa", {})
         self.nombre_rpa.setText(rpa.get("nombre", ""))
         self.modo_visible.setChecked(rpa.get("modo_navegador_visible", False))

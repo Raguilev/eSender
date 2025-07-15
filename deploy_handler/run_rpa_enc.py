@@ -1,37 +1,21 @@
 import os
 import sys
-import json
 from datetime import datetime
 
-# === Asegurar que 'rpa_runner' esté disponible incluso en modo empaquetado (.exe) ===
+# === Asegurar acceso al runner incluso desde .exe ===
 script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 sys.path.insert(0, script_dir)
 sys.path.insert(0, os.path.join(script_dir, "rpa_runner"))
 
+from decryptor import descifrar_configuracion
 from rpa_runner.navigation import ejecutar_navegacion
 from rpa_runner.mailer import enviar_reporte_por_correo
 
 
-def cargar_configuracion(ruta: str) -> dict:
-    """
-    Carga un archivo JSON de configuración.
-    Finaliza si hay errores de lectura o formato.
-    """
-    if not os.path.isfile(ruta):
-        print(f"[ERROR] Archivo de configuración no encontrado: {ruta}")
-        sys.exit(1)
-
-    try:
-        with open(ruta, encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"[ERROR] Fallo al leer la configuración JSON:\n{e}")
-        sys.exit(1)
-
-
 def validar_configuracion(config: dict):
     """
-    Verifica campos mínimos requeridos para ejecutar el RPA de forma segura.
+    Valida campos mínimos requeridos en la configuración.
+    Termina el programa si hay errores críticos.
     """
     rpa = config.get("rpa", {})
     correo = config.get("correo", {})
@@ -53,12 +37,24 @@ def validar_configuracion(config: dict):
 
 def main():
     # === Verificar argumentos ===
-    if len(sys.argv) < 2:
-        print("Uso: run_rpa.py <ruta_config.json>")
+    if len(sys.argv) < 3:
+        print("Uso: run_rpa_enc.py <ruta_config.enc> <ruta_key.key>")
         sys.exit(1)
 
-    config_path = sys.argv[1]
-    config = cargar_configuracion(config_path)
+    ruta_enc, ruta_key = sys.argv[1], sys.argv[2]
+
+    if not os.path.isfile(ruta_enc) or not os.path.isfile(ruta_key):
+        print("[ERROR] Archivo .enc o .key no encontrado.")
+        sys.exit(1)
+
+    # === Descifrar configuración ===
+    try:
+        config = descifrar_configuracion(ruta_enc, ruta_key)
+    except Exception as e:
+        print(f"[ERROR] Fallo al descifrar la configuración:\n{e}")
+        sys.exit(1)
+
+    # === Validar campos clave ===
     validar_configuracion(config)
 
     rpa = config["rpa"]
