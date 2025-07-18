@@ -3,7 +3,6 @@ import sys
 import json
 from datetime import datetime
 
-# === Asegurar que 'rpa_runner' esté disponible incluso en modo empaquetado (.exe) ===
 script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 sys.path.insert(0, script_dir)
 sys.path.insert(0, os.path.join(script_dir, "rpa_runner"))
